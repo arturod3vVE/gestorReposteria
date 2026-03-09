@@ -16,6 +16,7 @@ from django.shortcuts import get_object_or_404
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from .services import process_payment_action, process_telegram_command
 from .utils import send_telegram_receipt_async
+from django.conf import settings
 
 @user_passes_test(lambda u: u.is_staff)
 def dashboard(request):
@@ -892,7 +893,7 @@ def telegram_webhook(request):
     if request.method == 'POST':
         try:
             update = json.loads(request.body.decode('utf-8'))
-            TOKEN = '8627168195:AAFannS3wgHnFhlupbhmg74APJvwGgLc3Ew' # Pon tu token aquí arriba para usarlo en ambos casos
+            TOKEN = settings.TELEGRAM_BOT_TOKEN
             
             # --- CASO A: EL USUARIO HIZO CLIC EN UN BOTÓN ---
             if 'callback_query' in update:

@@ -9,8 +9,8 @@ def send_telegram_receipt_async(payment_record, total_amount, is_bulk=False):
     no tenga que esperar a que Telegram responda para ver su pantalla de éxito.
     """
     def send_message():
-        TOKEN = '8627168195:AAFannS3wgHnFhlupbhmg74APJvwGgLc3Ew'
-        CHAT_ID = '-5204556132' 
+        TOKEN = settings.TELEGRAM_BOT_TOKEN
+        CHAT_ID = settings.TELEGRAM_CHAT_ID
         
         customer_name = payment_record.order.customer.full_name if payment_record.order.customer else "Venta de Mostrador"
         metodo = payment_record.get_payment_method_display()

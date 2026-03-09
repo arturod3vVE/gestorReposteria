@@ -1,4 +1,4 @@
-from .models import Payment
+from .models import Payment, Order
 from decimal import Decimal
 from django.db.models import Sum
 from django.utils import timezone
@@ -59,9 +59,8 @@ def process_payment_action(payment, action):
 
 def process_telegram_command(command_text):
     """
-    Procesador central de comandos de texto para el bot Quirón.
+    Procesador de comandos para la administración de CrumbCore.
     """
-    # Limpiamos el comando y lo separamos por espacios
     partes = command_text.strip().split()
     if not partes:
         return None
@@ -73,88 +72,59 @@ def process_telegram_command(command_text):
     if comando.startswith('/metricas'):
         ventas_hoy = Order.objects.filter(created_at__date=hoy).aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
         pagos_hoy = Payment.objects.filter(is_verified=True, reported_at__date=hoy).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        entregas = Order.objects.filter(expected_delivery_date__date=hoy, status__in=['PENDING', 'PREPARING']).count()
         
         return (
-            f"🔱 *MÉTRICAS DE LA FORJA* ({hoy.strftime('%d/%m/%Y')})\n"
-            f"━━━━━━━━━━━━━━━━━━\n"
-            f"📈 *Ventas Facturadas:* ${ventas_hoy}\n"
-            f"💵 *Dinero Verificado:* ${pagos_hoy}\n"
-            f"📦 *Entregas para hoy:* {entregas}\n"
-            f"━━━━━━━━━━━━━━━━━━"
+            f"🧁 *CRUMBCORE: REPORTE DIARIO* ({hoy.strftime('%d/%m/%Y')})\n"
+            f"----------------------------------\n"
+            f"📈 *Ventas Brutas:* ${ventas_hoy}\n"
+            f"💵 *Cobranza Verificada:* ${pagos_hoy}\n"
+            f"----------------------------------"
         )
 
     # --- COMANDO: /DEUDORES ---
     elif comando.startswith('/deudores'):
-        # Buscamos órdenes que no estén pagadas y tengan saldo pendiente
         ordenes_pendientes = Order.objects.exclude(payment_status='PAID').select_related('customer')
         deudores = []
-        
         for order in ordenes_pendientes:
             saldo = order.balance_due_calculated
             if saldo > 0:
-                cliente = order.customer.full_name if order.customer else f"Cliente #{order.id}"
+                cliente = order.customer.full_name if order.customer else f"Orden #{order.id}"
                 deudores.append((cliente, order.id, saldo))
         
         if not deudores:
-            return "✨ *Olimpo en orden:* No hay deudas pendientes actualmente."
+            return "✅ *CrumbCore:* Todas las cuentas están al día."
             
-        # Ordenamos por monto de mayor a menor y tomamos los 5 principales
         deudores = sorted(deudores, key=lambda x: x[2], reverse=True)[:5]
-        
-        respuesta = "⚠️ *PRINCIPALES SALDOS PENDIENTES*\n"
-        respuesta += "━━━━━━━━━━━━━━━━━━\n"
+        respuesta = "⚠️ *CLIENTES CON SALDO PENDIENTE*\n"
         for d in deudores:
-            respuesta += f"👤 {d[0]}\n   └ Orden #{d[1]} ➔ 🔴 *${d[2]}*\n\n"
-        respuesta += "━━━━━━━━━━━━━━━━━━"
+            respuesta += f"👤 {d[0]} | 🆔 #{d[1]} ➔ *${d[2]}*\n"
         return respuesta
 
-    # --- COMANDO: /BUSCAR_ORDEN [ID] ---
+    # --- COMANDO: /BUSCAR_ORDEN ---
     elif comando.startswith('/buscar_orden'):
         if len(partes) < 2:
-            return "❌ *Error:* Indica el ID de la orden.\nEjemplo: `/buscar_orden 15`"
+            return "❌ *Error:* Indica el ID de la orden. Ej: `/buscar_orden 15`"
         
-        order_id = partes[1]
         try:
-            # Usamos prefetch para evitar consultas N+1 al listar productos
+            order_id = partes[1]
             order = Order.objects.prefetch_related('items__product').get(id=order_id)
             
-            status_map = {
-                'PENDING': '⏳ Pendiente',
-                'PREPARING': '👨‍🍳 En Preparación',
-                'READY': '📦 Listo',
-                'DELIVERED': '✅ Entregado',
-                'CANCELLED': '🚫 Cancelado'
-            }
+            status_map = {'PENDING': '⏳ Pendiente', 'PREPARING': '👨‍🍳 En Cocina', 'READY': '📦 Listo', 'DELIVERED': '✅ Entregado', 'CANCELLED': '🚫 Cancelado'}
             
             items_resumen = ""
             for item in order.items.all():
                 items_resumen += f"• {item.quantity}x {item.product.name}\n"
 
             return (
-                f"🔱 *EXPEDIENTE DE ORDEN #{order.id}*\n"
-                f"━━━━━━━━━━━━━━━━━━\n"
-                f"👤 *Cliente:* {order.customer.full_name if order.customer else 'Mostrador'}\n"
-                f"📍 *Estado:* {status_map.get(order.status, order.status)}\n"
+                f"📑 *DETALLE DE ORDEN #{order.id}*\n"
+                f"----------------------------------\n"
+                f"👤 *Cliente:* {order.customer.full_name if order.customer else 'N/A'}\n"
+                f"📍 *Status:* {status_map.get(order.status, order.status)}\n"
                 f"💰 *Total:* ${order.total_amount}\n"
-                f"🔴 *Deuda:* ${order.balance_due_calculated}\n"
-                f"📅 *Entrega:* {order.expected_delivery_date.strftime('%d/%m/%Y %I:%M %p')}\n\n"
-                f"📦 *Contenido:*\n{items_resumen}"
-                f"━━━━━━━━━━━━━━━━━━"
+                f"🔴 *Por pagar:* ${order.balance_due_calculated}\n\n"
+                f"📦 *Productos:*\n{items_resumen}"
             )
-            
-        except (Order.DoesNotExist, ValueError):
-            return f"❓ No encontré la orden *#{order_id}* en los registros."
-
-    # --- COMANDO: /AYUDA ---
-    elif comando.startswith('/ayuda'):
-        return (
-            "🤖 *COMANDOS DISPONIBLES:*\n"
-            "━━━━━━━━━━━━━━━━━━\n"
-            "📊 /metricas - Ventas y cobros de hoy\n"
-            "👥 /deudores - Top 5 deudas pendientes\n"
-            "🔍 /buscar_orden [id] - Detalles del pedido\n"
-            "━━━━━━━━━━━━━━━━━━"
-        )
+        except:
+            return f"❓ No existe la orden #{partes[1]}."
 
     return None
