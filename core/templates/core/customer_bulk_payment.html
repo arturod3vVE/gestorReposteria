@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estado de Cuenta - CrumbCore</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fc; }
+        .payment-container { max-width: 650px; margin: 30px auto; }
+        .brand-header { background-color: #4e73df; color: white; padding: 20px; border-radius: 10px 10px 0 0; text-align: center; }
+        .payment-card-label { cursor: pointer; border: 2px solid #e3e6f0; transition: all 0.2s ease-in-out; }
+        .payment-card-label.selected { border-color: #4e73df; background-color: #f8faff; }
+        .radio-icon { color: #d1d3e2; }
+        .payment-card-label.selected .radio-icon { color: #4e73df; }
+    </style>
+</head>
+<body>
+
+<div class="container payment-container">
+    
+    <div class="brand-header shadow-sm">
+        <i class="fas fa-cookie-bite fa-3x mb-2"></i>
+        <h4 class="font-weight-bold mb-0">CrumbCore</h4>
+        <p class="mb-0">Portal de Liquidación de Cuentas</p>
+    </div>
+
+    <div class="card shadow-sm border-0" style="border-radius: 0 0 10px 10px;">
+        <div class="card-body p-4">
+            
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-success text-center font-weight-bold shadow-sm">
+                        <i class="fas fa-check-circle fa-2x mb-2"></i><br>
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <div class="text-center mb-4">
+                <h5 class="text-gray-800 font-weight-bold">Hola, {{ customer.full_name }}</h5>
+                <p class="text-muted small">Este es el resumen de tus órdenes pendientes por pagar.</p>
+                <span class="badge badge-info p-2 shadow-sm"><i class="fas fa-exchange-alt"></i> Tasa Referencial: {{ tasa_dia }} Bs</span>
+            </div>
+
+            {% if not orders %}
+                <div class="text-center py-5">
+                    <i class="fas fa-laugh-beam fa-4x text-success mb-3"></i>
+                    <h4 class="font-weight-bold text-success">¡Cuenta al día!</h4>
+                    <p class="text-muted">No tienes órdenes con saldos pendientes por pagar. Gracias por preferirnos.</p>
+                </div>
+            
+            {% elif max_reportable <= 0 %}
+                <div class="text-center py-5 mt-2">
+                    <i class="fas fa-hourglass-half fa-4x text-info mb-3"></i>
+                    <h4 class="font-weight-bold text-info">Pago en Revisión</h4>
+                    <p class="text-muted">Ya has reportado pagos que cubren el total de tu deuda. Nuestro equipo está verificando la transacción. No es necesario que reportes nuevamente.</p>
+                </div>
+
+            {% else %}
+
+                <div class="table-responsive mb-4">
+                    <table class="table table-sm table-bordered">
+                        <thead class="bg-light text-center small text-uppercase">
+                            <tr>
+                                <th>Orden</th>
+                                <th>Fecha</th>
+                                <th>Deuda Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in orders %}
+                            <tr>
+                                <td class="align-middle text-center font-weight-bold">#{{ order.id }}</td>
+                                <td class="align-middle text-center text-muted small">{{ order.created_at|date:"d/m/Y" }}</td>
+                                <td class="align-middle text-right text-danger font-weight-bold">${{ order.balance_due_calculated }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="alert alert-warning text-center shadow-sm mb-4">
+                    <span class="d-block small text-uppercase font-weight-bold">Total a Liquidar (Pago Único)</span>
+                    <h2 class="font-weight-bold mb-0 text-danger">${{ max_reportable }}</h2>
+                    <span class="d-block font-weight-bold text-dark border-top border-warning pt-2 mt-2">
+                        Equivalente: Bs. {{ max_reportable_bs }}
+                    </span>
+                </div>
+
+                <form method="POST" enctype="multipart/form-data" id="bulk_payment_form">
+                    {% csrf_token %}
+                    <input type="hidden" name="payment_method" id="hidden_payment_method" required>
+
+                    <h6 class="font-weight-bold text-gray-800 mb-3 border-top pt-4">1. Selecciona cómo realizaste el pago:</h6>
+                    
+                    <div class="row mb-4">
+                        {% for dest in destinations %}
+                            <div class="col-12 mb-2">
+                                <label class="card payment-card-label rounded shadow-sm w-100 mb-0">
+                                    <input type="radio" class="d-none payment-radio" data-type="{{ dest.destination_type }}">
+                                    <div class="card-body p-3">
+                                        <div class="d-flex w-100 justify-content-between align-items-center mb-2">
+                                            <h6 class="mb-0 font-weight-bold text-primary">{{ dest.name }}</h6>
+                                            <i class="far fa-circle fa-lg radio-icon"></i>
+                                        </div>
+                                        <div class="small text-gray-700">
+                                            {% if dest.destination_type == 'MOBILE' %}
+                                                <strong>Banco:</strong> {{ dest.bank }} &nbsp;|&nbsp; <strong>Tel:</strong> {{ dest.phone }}<br>
+                                                <strong>Doc:</strong> {{ dest.document_type }}-{{ dest.document_number }}
+                                            {% elif dest.destination_type == 'TRANSFER' %}
+                                                <strong>Banco:</strong> {{ dest.bank }}<br>
+                                                <strong>Cuenta:</strong> {{ dest.account_number }}<br>
+                                                <strong>Doc:</strong> {{ dest.document_type }}-{{ dest.document_number }}
+                                            {% elif dest.destination_type == 'ZELLE' %}
+                                                <strong>Correo:</strong> {{ dest.email }}<br>
+                                                <strong>Titular:</strong> {{ dest.owner_name }}
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <div id="payment_details_section" style="display: none;">
+                        <h6 class="font-weight-bold text-gray-800 mb-3 border-top pt-4">2. Ingresa los datos de tu comprobante:</h6>
+
+                        <div class="form-group mt-3">
+                            <label class="font-weight-bold text-gray-800 small">Número de Referencia *</label>
+                            <input type="text" name="reference_number" class="form-control form-control-lg" placeholder="Ref. bancaria, captura o titular" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="font-weight-bold text-gray-800 small">Comprobante (Obligatorio)</label>
+                            <input type="file" name="receipt" class="form-control-file border p-2 rounded bg-light" accept="image/*,.pdf" required>
+                            <small class="text-muted mt-1 d-block">Sube la captura de pantalla de tu transferencia por el monto exacto de <strong>${{ max_reportable }}</strong>.</small>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-block btn-lg font-weight-bold mt-4 shadow-sm" id="submit_btn">
+                            <i class="fas fa-paper-plane mr-1"></i> Reportar Liquidación Total
+                        </button>
+                    </div>
+                </form>
+
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const radios = document.querySelectorAll('.payment-radio');
+        const detailsSection = document.getElementById('payment_details_section');
+        const hiddenMethod = document.getElementById('hidden_payment_method');
+
+        radios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                document.querySelectorAll('.payment-card-label').forEach(label => {
+                    label.classList.remove('selected');
+                    label.querySelector('.radio-icon').classList.replace('fa-check-circle', 'fa-circle');
+                    label.querySelector('.radio-icon').classList.replace('fas', 'far');
+                });
+
+                const selectedLabel = this.closest('.payment-card-label');
+                selectedLabel.classList.add('selected');
+                const icon = selectedLabel.querySelector('.radio-icon');
+                icon.classList.replace('fa-circle', 'fa-check-circle');
+                icon.classList.replace('far', 'fas');
+
+                if (detailsSection) detailsSection.style.display = 'block';
+                if (hiddenMethod) hiddenMethod.value = this.getAttribute('data-type');
+            });
+        });
+    });
+</script>
+
+</body>
+</html>

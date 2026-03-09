@@ -1,0 +1,55 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Registrar Cliente{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Registrar Nuevo Cliente</h1>
+        <a href="{% url 'order_list' %}" class="btn btn-sm btn-secondary shadow-sm">
+            <i class="fas fa-arrow-left fa-sm"></i> Volver
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Datos Personales</h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {% csrf_token %}
+                        
+                        <div class="form-group">
+                            <label for="full_name">Nombre Completo *</label>
+                            <input type="text" class="form-control" id="full_name" name="full_name" required>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label for="phone">Teléfono</label>
+                                <input type="text" class="form-control" id="phone" name="phone">
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="email">Correo Electrónico</label>
+                                <input type="email" class="form-control" id="email" name="email">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="delivery_address">Dirección de Entrega</label>
+                            <textarea class="form-control" id="delivery_address" name="delivery_address" rows="3"></textarea>
+                        </div>
+
+                        <hr>
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <i class="fas fa-save"></i> Guardar Cliente
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

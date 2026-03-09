@@ -1,0 +1,86 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Editar Ingrediente: {{ ingredient.name }} - CrumbCore{% endblock %}
+
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Editar Ingrediente</h1>
+    <a href="{% url 'ingredient_list' %}" class="btn btn-sm btn-secondary shadow-sm">
+        <i class="fas fa-arrow-left fa-sm text-white-50"></i> Volver a la Biblioteca
+    </a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Detalles del Ingrediente</h6>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{% url 'edit_ingredient' ingredient.pk %}">
+                    {% csrf_token %}
+                    
+                    <div class="form-row">
+                        <div class="form-group col-md-8">
+                            <label class="font-weight-bold small text-gray-800">Nombre del Ingrediente *</label>
+                            <input type="text" name="name" class="form-control" value="{{ ingredient.name }}" required>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label class="font-weight-bold small text-gray-800">Unidad de Medida *</label>
+                            <select name="measurement_unit" class="form-control" required>
+                                <option value="G" {% if ingredient.measurement_unit == 'G' %}selected{% endif %}>Gramos (g)</option>
+                                <option value="KG" {% if ingredient.measurement_unit == 'KG' %}selected{% endif %}>Kilogramos (kg)</option>
+                                <option value="ML" {% if ingredient.measurement_unit == 'ML' %}selected{% endif %}>Mililitros (ml)</option>
+                                <option value="L" {% if ingredient.measurement_unit == 'L' %}selected{% endif %}>Litros (L)</option>
+                                <option value="U" {% if ingredient.measurement_unit == 'U' %}selected{% endif %}>Unidades (Und)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="font-weight-bold small text-gray-800">Costo por Unidad ($) *</label>
+                        <input type="number" step="0.0001" min="0" name="cost_per_unit" class="form-control" value="{{ ingredient.cost_per_unit|stringformat:'f' }}" required>
+                        <small class="text-muted">¿Cuánto te cuesta 1 gramo, 1 kilo o 1 unidad exacta de este ingrediente?</small>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="custom-control custom-switch mb-3">
+                        <input type="checkbox" class="custom-control-input" id="trackStockSwitch" name="track_stock" {% if ingredient.track_stock %}checked{% endif %}>
+                        <label class="custom-control-label font-weight-bold text-gray-800" for="trackStockSwitch">Rastrear cantidad en inventario</label>
+                    </div>
+
+                    <div class="form-group bg-light p-3 border rounded" id="stock_group" {% if not ingredient.track_stock %}style="display: none;"{% endif %}>
+                        <label class="font-weight-bold small text-gray-800">Stock Actual</label>
+                        <input type="number" step="0.01" min="0" name="stock_quantity" id="stock_quantity" class="form-control" value="{{ ingredient.stock_quantity|stringformat:'f' }}">
+                        <small class="text-muted d-block mt-1">Introduce la cantidad que tienes disponible físicamente.</small>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block font-weight-bold mt-4 shadow-sm">
+                        <i class="fas fa-save mr-1"></i> Actualizar Ingrediente
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const switchStock = document.getElementById('trackStockSwitch');
+        const stockGroup = document.getElementById('stock_group');
+        const stockInput = document.getElementById('stock_quantity');
+
+        switchStock.addEventListener('change', function() {
+            if (this.checked) {
+                stockGroup.style.display = 'block';
+                stockInput.setAttribute('required', 'required');
+            } else {
+                stockGroup.style.display = 'none';
+                stockInput.removeAttribute('required');
+                stockInput.value = '0';
+            }
+        });
+    });
+</script>
+{% endblock %}

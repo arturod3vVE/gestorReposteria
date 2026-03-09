@@ -1,0 +1,89 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Añadir Ingrediente - CrumbCore{% endblock %}
+
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Añadir Nuevo Ingrediente</h1>
+    <a href="{% url 'ingredient_list' %}" class="d-none d-sm-inline-block btn btn-sm btn-secondary shadow-sm">
+        <i class="fas fa-arrow-left fa-sm text-white-50"></i> Volver a la Biblioteca
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Detalles del Ingrediente</h6>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{% url 'create_ingredient' %}">
+                    {% csrf_token %}
+                    
+                    <div class="form-group">
+                        <label for="name">Nombre del Ingrediente *</label>
+                        <input type="text" class="form-control" id="name" name="name" required placeholder="Ej. Harina de Trigo Todo Uso">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="measurement_unit">Unidad de Medida *</label>
+                            <select id="measurement_unit" name="measurement_unit" class="form-control" required>
+                                {% for key, value in unidades %}
+                                    <option value="{{ key }}">{{ value }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="form-group col-md-6">
+                            <label for="cost_per_unit">Costo por Unidad ($) *</label>
+                            <input type="number" step="0.0001" min="0" class="form-control" id="cost_per_unit" name="cost_per_unit" required placeholder="Ej. 0.0020">
+                            <small class="form-text text-muted">Costo por 1 gramo, 1 ml, etc.</small>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="mb-4">
+                        <div class="custom-control custom-switch mb-3">
+                            <input type="checkbox" class="custom-control-input" id="track_stock" name="track_stock">
+                            <label class="custom-control-label font-weight-bold text-gray-700" for="track_stock">
+                                ¿Deseas registrar stock inicial para este ingrediente?
+                            </label>
+                        </div>
+
+                        <div class="form-group col-md-6 pl-0" id="stock_div" style="display: none;">
+                            <label for="stock_quantity">Cantidad en Stock</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="stock_quantity" name="stock_quantity" value="0">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Guardar Ingrediente
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const switchStock = document.getElementById('track_stock');
+        const stockDiv = document.getElementById('stock_div');
+        const stockInput = document.getElementById('stock_quantity');
+
+        switchStock.addEventListener('change', function() {
+            if (this.checked) {
+                stockDiv.style.display = 'block';
+                // Opcional: enfocar el input automáticamente al mostrarlo
+                stockInput.focus();
+            } else {
+                stockDiv.style.display = 'none';
+                // Si lo apagan, regresamos el valor a 0
+                stockInput.value = '';
+            }
+        });
+    });
+</script>
+{% endblock %}

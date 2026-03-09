@@ -1,0 +1,205 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Añadir Producto y Receta - CrumbCore{% endblock %}
+
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Crear Producto y Receta</h1>
+    <a href="{% url 'product_list' %}" class="d-none d-sm-inline-block btn btn-sm btn-secondary shadow-sm">
+        <i class="fas fa-arrow-left fa-sm text-white-50"></i> Volver al Catálogo
+    </a>
+</div>
+
+{% if not categories %}
+<div class="alert alert-warning shadow border-left-warning py-3">
+    <div class="d-flex align-items-center">
+        <i class="fas fa-exclamation-triangle fa-2x text-warning mr-3"></i>
+        <div>
+            <span class="font-weight-bold">Atención: Faltan Categorías</span><br>
+            No puedes crear un producto sin asignarle una categoría. Por favor, crea al menos una primero.
+            <div class="mt-2">
+                <a href="{% url 'create_category' %}" class="btn btn-warning btn-sm font-weight-bold shadow-sm">
+                    <i class="fas fa-plus"></i> Crear mi primera categoría
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+
+<form method="POST" action="{% url 'create_product' %}">
+    {% csrf_token %}
+    <div class="row">
+        
+        <div class="col-lg-5">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Detalles Generales</h6>
+                </div>
+                <div class="card-body">
+                    
+                    <div class="form-group">
+                        <label for="name">Nombre del Producto *</label>
+                        <input type="text" class="form-control" id="name" name="name" required placeholder="Ej. Galletas con Chispas">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="category">Categoría *</label>
+                        <select id="category" name="category" class="form-control" required>
+                            <option value="" disabled selected>Selecciona una categoría...</option>
+                            {% for category in categories %}
+                                <option value="{{ category.id }}">{{ category.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="recipe_yield">Rendimiento *</label>
+                            <input type="number" min="1" class="form-control" id="recipe_yield" name="recipe_yield" value="1" required>
+                            <small class="text-muted">¿Cuántas unidades salen?</small>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label for="sale_price">Precio Venta c/u ($) *</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="sale_price" name="sale_price" required placeholder="Ej. 1.50">
+                            <small class="text-muted">A cuánto vendes 1 unidad</small>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="description">Descripción</label>
+                        <textarea class="form-control" id="description" name="description" rows="2" placeholder="Notas internas o para el cliente..."></textarea>
+                    </div>
+                    
+                    <div class="custom-control custom-switch mt-3">
+                        <input type="checkbox" class="custom-control-input" id="is_available" name="is_available" checked>
+                        <label class="custom-control-label font-weight-bold text-success" for="is_available">Disponible para venta</label>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="custom-control custom-switch mb-3">
+                        <input type="checkbox" class="custom-control-input" id="track_stock" name="track_stock">
+                        <label class="custom-control-label font-weight-bold text-gray-800" for="track_stock">Rastrear Stock en Vitrina</label>
+                    </div>
+
+                    <div class="form-group bg-light p-3 border rounded" id="stock_group" style="display: none;">
+                        <label class="font-weight-bold small text-gray-800">Unidades Disponibles Iniciales</label>
+                        <input type="number" step="1" min="0" name="stock_quantity" id="stock_quantity" class="form-control" value="0">
+                        <small class="text-muted d-block mt-1">Galletas o postres ya listos para entregar hoy.</small>
+                    </div>
+                    </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Ingredientes de la Receta</h6>
+                    <button type="button" class="btn btn-sm btn-success" id="add-ingredient-btn">
+                        <i class="fas fa-plus"></i> Añadir Ingrediente
+                    </button>
+                </div>
+                <div class="card-body" id="recipe-container">
+                    
+                    <div class="row recipe-row mb-2" id="empty-row" style="display: none;">
+                        <div class="col-7">
+                            <select name="ingredient_id[]" class="form-control" disabled>
+                                <option value="" disabled selected>Selecciona ingrediente...</option>
+                                {% for ing in ingredients %}
+                                    <option value="{{ ing.id }}">{{ ing.name }} ({{ ing.get_measurement_unit_display }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-4">
+                            <input type="number" step="0.01" min="0" name="quantity_required[]" class="form-control" placeholder="Cantidad" disabled>
+                        </div>
+                        <div class="col-1 text-right">
+                            <button type="button" class="btn btn-danger btn-sm remove-row-btn"><i class="fas fa-times"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="row recipe-row mb-2">
+                        <div class="col-7">
+                            <select name="ingredient_id[]" class="form-control" required>
+                                <option value="" disabled selected>Selecciona ingrediente...</option>
+                                {% for ing in ingredients %}
+                                    <option value="{{ ing.id }}">{{ ing.name }} ({{ ing.get_measurement_unit_display }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-4">
+                            <input type="number" step="0.01" min="0" name="quantity_required[]" class="form-control" placeholder="Cantidad" required>
+                        </div>
+                        <div class="col-1 text-right">
+                            <button type="button" class="btn btn-danger btn-sm remove-row-btn"><i class="fas fa-times"></i></button>
+                        </div>
+                    </div>
+                    
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-block btn-lg shadow-sm">
+                <i class="fas fa-save"></i> Guardar Producto y Receta
+            </button>
+        </div>
+
+    </div>
+</form>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {  
+        
+        // --- 1. LÓGICA DE LA RECETA ---
+        const container = document.getElementById('recipe-container');
+        const emptyRow = document.getElementById('empty-row');
+        const addBtn = document.getElementById('add-ingredient-btn');
+
+        addBtn.addEventListener('click', function() {
+            const newRow = emptyRow.cloneNode(true);
+            newRow.id = ''; // Quitamos el ID
+            newRow.style.display = 'flex'; // La hacemos visible
+            
+            // Capturamos los campos clonados y los activamos
+            const selectField = newRow.querySelector('select');
+            const inputField = newRow.querySelector('input');
+
+            selectField.removeAttribute('disabled');
+            selectField.setAttribute('required', 'required');
+            
+            inputField.removeAttribute('disabled');
+            inputField.setAttribute('required', 'required');
+
+            container.appendChild(newRow);
+        });
+
+        container.addEventListener('click', function(e) {
+            if (e.target.closest('.remove-row-btn')) {
+                const row = e.target.closest('.recipe-row');
+                if (row.id !== 'empty-row') {
+                    row.remove();
+                }
+            }
+        });
+
+        // --- 2. LÓGICA DE INVENTARIO DEL PRODUCTO ---
+        const trackStockSwitch = document.getElementById('track_stock');
+        const stockGroup = document.getElementById('stock_group');
+        const stockInput = document.getElementById('stock_quantity');
+
+        if (trackStockSwitch) {
+            trackStockSwitch.addEventListener('change', function() {
+                if (this.checked) {
+                    stockGroup.style.display = 'block';
+                    stockInput.setAttribute('required', 'required');
+                } else {
+                    stockGroup.style.display = 'none';
+                    stockInput.removeAttribute('required');
+                    stockInput.value = '0';
+                }
+            });
+        }
+    });
+</script>
+{% endif %}
+{% endblock %}

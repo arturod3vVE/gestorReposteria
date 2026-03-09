@@ -1,0 +1,253 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Detalles de Orden #{{ order.id }} - CrumbCore{% endblock %}
+
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4 d-print-none">
+    <h1 class="h3 mb-0 text-gray-800">Detalles de la Orden #{{ order.id }}</h1>
+    <div class="d-flex align-items-center">
+        <span class="badge badge-info p-2 mr-3 shadow-sm" style="font-size: 0.9em;">
+            <i class="fas fa-exchange-alt mr-1"></i> Tasa: {{ tasa_dia }} Bs
+        </span>
+        
+        <a href="{% url 'order_list' %}" class="btn btn-sm btn-secondary shadow-sm">
+            <i class="fas fa-arrow-left fa-sm text-white-50"></i> Volver al Registro
+        </a>
+        <a href="{% url 'order_invoice' order.pk %}" target="_blank" class="btn btn-sm btn-dark shadow-sm ml-2">
+            <i class="fas fa-print fa-sm text-white-50"></i> Imprimir Factura
+        </a>
+        
+        {% if order.status == 'PENDING' and order.payment_status == 'PENDING' %}
+        <form method="POST" action="{% url 'update_order_status' order.pk 'CANCELLED' %}" class="d-inline ml-2">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-danger shadow-sm" onclick="return confirm('¿Seguro que deseas cancelar la orden?');">
+                <i class="fas fa-ban fa-sm"></i> Cancelar Orden
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm font-weight-bold d-print-none" role="alert">
+            {{ message }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    {% endfor %}
+{% endif %}
+<div class="row">
+    <div class="col-lg-8">
+        
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Productos Ordenados</h6>
+                <span class="badge badge-{% if order.status == 'DELIVERED' %}success{% elif order.status == 'CANCELLED' %}danger{% else %}warning{% endif %}">
+                    {{ order.get_status_display }}
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead class="bg-light">
+                            <tr>
+                                <th>Producto</th>
+                                <th class="text-center">Cantidad</th>
+                                <th class="text-right">Precio Unitario</th>
+                                <th class="text-right">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in order.items.all %}
+                            <tr>
+                                <td>{{ item.product.name }}</td>
+                                <td class="text-center">{{ item.quantity }}</td>
+                                <td class="text-right">${{ item.unit_price }}</td>
+                                <td class="text-right font-weight-bold text-gray-800">
+                                    ${{ item.subtotal }}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center text-muted">No hay productos registrados en esta orden.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="bg-light">
+                            <tr>
+                                <th colspan="3" class="text-right align-middle">Monto Total:</th>
+                                <th class="text-right">
+                                    <div class="text-primary font-weight-bold h5 mb-0">${{ order.total_calculated }}</div>
+                                    <small class="text-muted font-weight-bold">Bs. {{ total_bs }}</small>
+                                </th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-gray-800">Instrucciones Especiales</h6>
+            </div>
+            <div class="card-body">
+                <p class="mb-0 text-gray-700 font-italic">
+                    {{ order.special_notes|default:"No hay instrucciones especiales proporcionadas para esta orden." }}
+                </p>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="col-lg-4">
+        
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Detalles del Cliente</h6>
+            </div>
+            <div class="card-body">
+                {% if order.customer %}
+                    <h5 class="font-weight-bold text-gray-800 mb-1">{{ order.customer.full_name }}</h5>
+                    <p class="mb-1 text-gray-600"><i class="fas fa-phone fa-sm mr-2"></i>{{ order.customer.phone|default:"N/A" }}</p>
+                    <p class="mb-1 text-gray-600"><i class="fas fa-envelope fa-sm mr-2"></i>{{ order.customer.email|default:"N/A" }}</p>
+                    <hr>
+                    <p class="small text-muted mb-0 font-weight-bold">Dirección de Entrega:</p>
+                    <p class="small text-gray-800">{{ order.customer.delivery_address|default:"Recoger en el mostrador" }}</p>
+                {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-user-tag fa-2x text-gray-300 mb-2"></i>
+                        <p class="text-muted mb-0">Venta al Contado / Cliente que Visita</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card shadow mb-4 border-left-info">
+            <div class="card-body">
+                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Fecha de Entrega Esperada</div>
+                <div class="h5 mb-0 font-weight-bold text-gray-800">{{ order.expected_delivery_date|date:"d/m/Y" }}</div>
+                <div class="text-muted small">{{ order.expected_delivery_date|date:"h:i A" }}</div>
+            </div>
+        </div>
+
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-success">Historial de Pagos</h6>
+                <span class="badge badge-{% if order.payment_status == 'PAID' %}success{% elif order.payment_status == 'PENDING' %}danger{% else %}info{% endif %}">
+                    {{ order.get_payment_status_display }}
+                </span>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for payment in order.payments.all %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="small font-weight-bold d-block text-gray-800">{{ payment.get_payment_method_display }}</span>
+                            <span class="text-xs text-muted">{{ payment.reported_at|date:"d/m/Y" }}</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="font-weight-bold text-success">${{ payment.amount }}</span>
+                            {% if not payment.is_verified %}
+                                <br><span class="badge badge-warning text-xs">No verificado</span>
+                            {% endif %}
+                        </div>
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item text-center text-muted small py-3">
+                        No se han registrado pagos para esta orden.
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            
+            <div class="card-footer bg-light d-print-none">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="font-weight-bold text-gray-700">Saldo Pendiente:</span>
+                    <div class="text-right">
+                        <div class="h5 mb-0 font-weight-bold {% if order.balance_due_calculated > 0 %}text-danger{% else %}text-success{% endif %}">
+                            ${{ order.balance_due_calculated }}
+                        </div>
+                        {% if order.balance_due_calculated > 0 %}
+                            <small class="text-muted font-weight-bold">Bs. {{ balance_bs }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% if order.balance_due_calculated > 0 or order.payments.all %}
+                <div class="row">
+                    
+                    <div class="col-sm-4 mb-2 mb-sm-0 pr-sm-1">
+                        <button type="button" 
+                            class="btn {% if order.customer and order.customer.phone %}btn-primary{% else %}btn-secondary{% endif %} btn-block shadow-sm h-100" 
+                            onclick="sharePaymentLink('{{ request.scheme }}://{{ request.get_host }}{% url 'public_payment_link' order.pk %}', '{% if order.customer %}{{ order.customer.phone|default:'' }}{% endif %}', '{% if order.customer %}{{ order.customer.full_name|escapejs|default:'Cliente' }}{% else %}Cliente{% endif %}', '{{ order.id }}')" 
+                            title="{% if order.customer and order.customer.phone %}Enviar Link por WhatsApp{% else %}Copiar Link{% endif %}">
+                            
+                            {% if order.customer and order.customer.phone %}
+                                <i class="fab fa-whatsapp" style="font-size: 1.1em;"></i> WhatsApp
+                            {% else %}
+                                <i class="fas fa-link"></i> Copiar Link
+                            {% endif %}
+                            
+                        </button>
+                    </div>
+                    
+                    <div class="col-sm-4 px-sm-1 mb-2 mb-sm-0">
+                        <form method="POST" action="{% url 'quick_cash_payment' order.pk %}" class="h-100">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-success btn-block shadow-sm h-100" onclick="return confirm('¿Recibiste el saldo de ${{ order.balance_due_calculated }} en efectivo?');" title="Pago en Efectivo">
+                                <i class="fas fa-money-bill-wave"></i> Efectivo
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="col-sm-4 pl-sm-1">
+                        <a href="{% url 'verify_order_payments' order.pk %}" class="btn btn-warning btn-block shadow-sm h-100 text-dark font-weight-bold" title="Ir al Panel de Verificación">
+                            <i class="fas fa-check-double"></i> Verificar
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<style>
+    @media print {
+        .navbar, .sidebar, .d-print-none, footer { display: none !important; }
+        body { background-color: white !important; }
+        .card { border: none !important; box-shadow: none !important; }
+        .card-header { background-color: transparent !important; border-bottom: 2px solid #000 !important; }
+    }
+</style>
+
+<script>
+    function sharePaymentLink(url, phone, name, orderId) {
+        // 1. Siempre copiamos el link al portapapeles por seguridad (respaldo)
+        navigator.clipboard.writeText(url).catch(err => console.error("Error copiando al portapapeles: ", err));
+
+        // 2. Evaluamos si el cliente tiene un número de teléfono válido
+        if (phone && phone.trim() !== '' && phone !== 'None') {
+            // Limpiamos el número dejando solo los dígitos (WhatsApp no se lleva bien con guiones o espacios)
+            let cleanPhone = phone.replace(/\D/g, '');
+            
+            if (cleanPhone.length > 0) {
+                // Preparamos un mensaje amigable
+                let message = `¡Hola ${name}! 👋\n\nAquí tienes el enlace seguro para reportar el pago de tu orden #${orderId}:\n${url}\n\nGracias por preferir a CrumbCore. 🍪`;
+                
+                // Codificamos el mensaje para que los espacios y saltos de línea funcionen en la URL
+                let waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+                
+                // Abrimos WhatsApp en una nueva pestaña
+                window.open(waUrl, '_blank');
+                return; // Cortamos la ejecución para que no salga el alert de abajo
+            }
+        }
+        
+        // 3. Fallback: Si no hay teléfono, solo avisamos que se copió
+        alert("¡Link de pago copiado con éxito! Ahora puedes pegarlo donde desees.");
+    }
+</script>
+{% endblock %}

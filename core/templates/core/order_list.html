@@ -1,0 +1,180 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Registro de Ordenes - CrumbCore{% endblock %}
+
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Registro de Ordenes</h1>
+    <div class="d-flex">
+        <a href="{% url 'create_order' %}" class="btn btn-sm btn-primary shadow-sm mr-2">
+            <i class="fas fa-plus fa-sm text-white-50"></i> Nueva Orden
+        </a>
+        <a href="{% url 'create_customer' %}" class="btn btn-sm btn-secondary shadow-sm">
+            <i class="fas fa-plus fa-sm text-white-50"></i> Nuevo Cliente
+        </a>
+    </div>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} shadow-sm font-weight-bold">
+            {{ message }}
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <form method="GET" class="form-inline">
+            <div class="form-group mr-3">
+                <label class="mr-2 small font-weight-bold">Estatus:</label>
+                <select name="status" class="form-control form-control-sm">
+                    <option value="">Todos...</option>
+                    {% for val, name in status_choices %}
+                        <option value="{{ val }}" {% if current_status == val %}selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group mr-3">
+                <label class="mr-2 small font-weight-bold">Desde:</label>
+                <input type="date" name="start_date" class="form-control form-control-sm" value="{{ current_start }}">
+            </div>
+            <div class="form-group mr-3">
+                <label class="mr-2 small font-weight-bold">Hasta:</label>
+                <input type="date" name="end_date" class="form-control form-control-sm" value="{{ current_end }}">
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm shadow-sm">
+                <i class="fas fa-filter fa-sm"></i> Filtrar
+            </button>
+            <a href="{% url 'order_list' %}" class="btn btn-secondary btn-sm shadow-sm ml-2">
+                <i class="fas fa-undo fa-sm"></i> Limpiar
+            </a>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Historial de Ventas y Entregas</h6>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover" id="dataTable" width="100%" cellspacing="0">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="text-center">#</th>
+                        <th>Cliente</th>
+                        <th>Fecha de Entrega</th>
+                        <th class="text-right">Total</th>
+                        <th class="text-right">Saldo Pendiente</th>
+                        <th class="text-center">Estado de la Orden</th>
+                        <th class="text-center">Estado de Pago</th>
+                        <th class="text-center" style="min-width: 160px;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr class="{% if order.status == 'CANCELLED' %}text-muted bg-light{% endif %}">
+                        <td class="align-middle text-center font-weight-bold">#{{ order.id }}</td>
+                        <td class="align-middle">
+                            <span class="font-weight-bold text-gray-800">{{ order.customer.full_name|default:"Venta de Mostrador" }}</span>
+                            {% if order.customer.phone %}<br><small>{{ order.customer.phone }}</small>{% endif %}
+                        </td>
+                        <td class="align-middle">
+                            {{ order.expected_delivery_date|date:"d/m/Y" }}<br>
+                            <small class="text-muted">{{ order.expected_delivery_date|date:"h:i A" }}</small>
+                        </td>
+                        <td class="align-middle text-right font-weight-bold text-gray-800">
+                            ${{ order.total_calculated }}
+                        </td>
+                        <td class="align-middle text-right font-weight-bold">
+                            {% if order.balance_due_calculated > 0 %}
+                                <span class="text-danger">${{ order.balance_due_calculated }}</span>
+                            {% else %}
+                                <span class="text-success">$0.00</span>
+                            {% endif %}
+                        </td>
+                        <td class="align-middle text-center">
+                            <span class="badge badge-{% if order.status == 'DELIVERED' %}success{% elif order.status == 'CANCELLED' %}danger{% else %}warning{% endif %}">
+                                {{ order.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="align-middle text-center">
+                            <span class="badge badge-{% if order.payment_status == 'PAID' %}success{% elif order.payment_status == 'PENDING' %}danger{% else %}info{% endif %}">
+                                {{ order.get_payment_status_display }}
+                            </span>
+                        </td>
+                        <td class="align-middle text-center">
+                            <a href="{% url 'order_detail' order.id %}" class="btn btn-info btn-circle btn-sm shadow-sm" title="Ver Detalles">
+                                <i class="fas fa-eye"></i>
+                            </a>
+
+                            <a href="{% url 'verify_order_payments' order.pk %}" class="btn btn-success btn-circle btn-sm shadow-sm ml-1" title="Verificar Pagos">
+                                <i class="fas fa-file-invoice-dollar"></i>
+                            </a>
+
+                            {% if order.status != 'DELIVERED' and order.status != 'CANCELLED' %}
+                            <form method="POST" action="{% url 'update_order_status' order.pk 'DELIVERED' %}" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-primary btn-circle btn-sm shadow-sm ml-1" title="Marcar como Entregada">
+                                    <i class="fas fa-box-open"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+
+                            {% if order.status != 'CANCELLED' %}
+                            <form method="POST" action="{% url 'update_order_status' order.pk 'CANCELLED' %}" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger btn-circle btn-sm shadow-sm ml-1" title="Cancelar Orden" onclick="return confirm('¿Estás seguro de cancelar esta orden? El stock regresará automáticamente a la vitrina.');">
+                                    <i class="fas fa-ban"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8" class="text-center py-5 text-gray-500">No hay órdenes para mostrar con los filtros actuales.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if orders.has_other_pages %}
+        <nav aria-label="Navegación de órdenes" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if orders.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link shadow-sm" href="?page={{ orders.previous_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_start %}&start_date={{ current_start }}{% endif %}{% if current_end %}&end_date={{ current_end }}{% endif %}">
+                            <i class="fas fa-chevron-left"></i> Anterior
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link text-muted"><i class="fas fa-chevron-left"></i> Anterior</span></li>
+                {% endif %}
+
+                {% for i in orders.paginator.page_range %}
+                    {% if orders.number == i %}
+                        <li class="page-item active shadow-sm"><span class="page-link">{{ i }}</span></li>
+                    {% else %}
+                        <li class="page-item">
+                            <a class="page-link shadow-sm" href="?page={{ i }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_start %}&start_date={{ current_start }}{% endif %}{% if current_end %}&end_date={{ current_end }}{% endif %}">{{ i }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if orders.has_next %}
+                    <li class="page-item">
+                        <a class="page-link shadow-sm" href="?page={{ orders.next_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_start %}&start_date={{ current_start }}{% endif %}{% if current_end %}&end_date={{ current_end }}{% endif %}">
+                            Siguiente <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link text-muted">Siguiente <i class="fas fa-chevron-right"></i></span></li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

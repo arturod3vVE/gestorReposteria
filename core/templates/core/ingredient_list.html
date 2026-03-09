@@ -1,0 +1,67 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Biblioteca de Ingredientes - CrumbCore{% endblock %}
+
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Biblioteca de Ingredientes</h1>
+    <a href="{% url 'create_ingredient' %}" class="d-none d-sm-inline-block btn btn-sm btn-primary shadow-sm">
+        <i class="fas fa-plus fa-sm text-white-50"></i> Añadir Nuevo Ingrediente
+    </a>
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Ingredientes Registrados</h6>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Unidad de Medida</th>
+                        <th>Costo por Unidad</th>
+                        <th>Stock Actual</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ingredient in ingredients %}
+                    <tr>
+                        <td class="align-middle">{{ ingredient.name }}</td>
+                        <td class="align-middle">{{ ingredient.get_measurement_unit_display }}</td>
+                        <td class="align-middle">${{ ingredient.cost_per_unit }}</td>
+                        <td class="align-middle text-center">
+                            {% if ingredient.track_stock %}
+                                {% if ingredient.stock_quantity > 0 %}
+                                    <span class="badge badge-success px-2 py-1">{{ ingredient.stock_quantity }} {{ ingredient.get_measurement_unit_display|lower }}</span>
+                                {% else %}
+                                    <span class="badge badge-danger px-2 py-1">Agotado</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge badge-secondary px-2 py-1" style="background-color: #e3e6f0; color: #5a5c69;">No rastreado</span>
+                            {% endif %}
+                        </td>
+                        <td class="align-middle text-center">
+                            <a href="{% url 'edit_ingredient' ingredient.pk %}" class="btn btn-warning btn-circle btn-sm" title="Editar">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="{% url 'delete_ingredient' ingredient.pk %}" class="btn btn-danger btn-circle btn-sm" title="Eliminar">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-gray-500">
+                            No hay ingredientes registrados en el inventario.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

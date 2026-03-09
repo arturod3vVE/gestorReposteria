@@ -1,0 +1,217 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Configuración de Pagos - CrumbCore{% endblock %}
+
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Cuentas y Métodos de Pago</h1>
+    <p class="mb-0 text-muted">Configura dónde los clientes deben enviar su dinero.</p>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} shadow-sm font-weight-bold">
+            <i class="fas fa-info-circle mr-2"></i> {{ message }}
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="row">
+    <div class="col-lg-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Registrar Nueva Cuenta</h6>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{% url 'payment_config_list' %}">
+                    {% csrf_token %}
+                    
+                    <div class="form-group">
+                        <label class="font-weight-bold small text-gray-800">Nombre Descriptivo *</label>
+                        <input type="text" name="name" class="form-control" placeholder="Ej. Pago Móvil Banesco Personal" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="font-weight-bold small text-gray-800">Tipo de Transacción *</label>
+                        <select id="type_selector" name="destination_type" class="form-control" required>
+                            <option value="" disabled selected>Seleccione el método...</option>
+                            <option value="MOBILE">Pago Móvil</option>
+                            <option value="TRANSFER">Transferencia Bancaria Nacional</option>
+                            <option value="ZELLE">Zelle / Dólares Digitales</option>
+                            <option value="CASH">Efectivo / Entrega</option>
+                        </select>
+                    </div>
+
+                    <hr>
+
+                    <div id="bank_fields" style="display: none;">
+                        <div class="form-group">
+                            <label class="font-weight-bold small text-gray-800">Banco Receptor *</label>
+                            <input type="text" id="input_bank" name="bank" class="form-control" placeholder="Ej. Banesco, Mercantil...">
+                        </div>
+                        <div class="form-group">
+                            <label class="font-weight-bold small text-gray-800">Documento de Identidad *</label>
+                            <div class="input-group">
+                                <div class="input-group-prepend">
+                                    <select name="document_type" class="form-control" style="border-top-right-radius: 0; border-bottom-right-radius: 0;">
+                                        <option value="V">V</option>
+                                        <option value="E">E</option>
+                                        <option value="J">J</option>
+                                        <option value="P">P</option>
+                                        <option value="G">G</option>
+                                    </select>
+                                </div>
+                                <input type="text" id="input_doc" name="document_number" class="form-control" placeholder="Ej. 12345678">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="mobile_fields" style="display: none;">
+                        <div class="form-group">
+                            <label class="font-weight-bold small text-gray-800">Teléfono Asociado *</label>
+                            <input type="text" id="input_phone" name="phone" class="form-control" placeholder="Ej. 04141234567">
+                        </div>
+                    </div>
+
+                    <div id="transfer_fields" style="display: none;">
+                        <div class="form-group">
+                            <label class="font-weight-bold small text-gray-800">Número de Cuenta *</label>
+                            <input type="text" id="input_account" name="account_number" class="form-control" placeholder="20 dígitos">
+                        </div>
+                    </div>
+
+                    <div id="zelle_fields" style="display: none;">
+                        <div class="form-group">
+                            <label class="font-weight-bold small text-gray-800">Correo Electrónico de Zelle *</label>
+                            <input type="email" id="input_email" name="email" class="form-control" placeholder="pagos@dominio.com">
+                        </div>
+                        <div class="form-group">
+                            <label class="font-weight-bold small text-gray-800">Nombre del Titular *</label>
+                            <input type="text" id="input_owner" name="owner_name" class="form-control" placeholder="Nombre que aparecerá en el banco">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block shadow-sm font-weight-bold mt-4">
+                        <i class="fas fa-save mr-1"></i> Guardar Método
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Métodos Registrados</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover">
+                        <thead class="bg-light">
+                            <tr>
+                                <th>Nombre y Tipo</th>
+                                <th>Credenciales Estructuradas</th>
+                                <th class="text-center">Estado</th>
+                                <th class="text-center">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for dest in destinations %}
+                            <tr>
+                                <td class="align-middle">
+                                    <span class="font-weight-bold text-gray-800">{{ dest.name }}</span><br>
+                                    <small class="text-muted">{{ dest.get_destination_type_display }}</small>
+                                </td>
+                                <td class="align-middle">
+                                    <span style="white-space: pre-line;" class="small text-gray-800">{{ dest.formatted_details }}</span>
+                                </td>
+                                <td class="align-middle text-center">
+                                    {% if dest.is_active %}
+                                        <span class="badge badge-success px-2 py-1">Visible</span>
+                                    {% else %}
+                                        <span class="badge badge-secondary px-2 py-1">Oculto</span>
+                                    {% endif %}
+                                </td>
+                                <td class="align-middle text-center">
+                                    <form method="POST" action="{% url 'toggle_payment_destination' dest.pk %}">
+                                        {% csrf_token %}
+                                        {% if dest.is_active %}
+                                            <button type="submit" class="btn btn-warning btn-sm shadow-sm" title="Ocultar del link público">
+                                                <i class="fas fa-eye-slash"></i>
+                                            </button>
+                                        {% else %}
+                                            <button type="submit" class="btn btn-success btn-sm shadow-sm" title="Mostrar en el link público">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        {% endif %}
+                                    </form>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center py-4 text-muted">Aún no has configurado ninguna cuenta receptora.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const selector = document.getElementById('type_selector');
+        
+        const bankFields = document.getElementById('bank_fields');
+        const mobileFields = document.getElementById('mobile_fields');
+        const transferFields = document.getElementById('transfer_fields');
+        const zelleFields = document.getElementById('zelle_fields');
+
+        // Inputs para manejar el atributo 'required'
+        const reqBank = document.getElementById('input_bank');
+        const reqDoc = document.getElementById('input_doc');
+        const reqPhone = document.getElementById('input_phone');
+        const reqAccount = document.getElementById('input_account');
+        const reqEmail = document.getElementById('input_email');
+        const reqOwner = document.getElementById('input_owner');
+
+        function hideAllAndRemoveRequired() {
+            bankFields.style.display = 'none';
+            mobileFields.style.display = 'none';
+            transferFields.style.display = 'none';
+            zelleFields.style.display = 'none';
+
+            reqBank.removeAttribute('required');
+            reqDoc.removeAttribute('required');
+            reqPhone.removeAttribute('required');
+            reqAccount.removeAttribute('required');
+            reqEmail.removeAttribute('required');
+            reqOwner.removeAttribute('required');
+        }
+
+        selector.addEventListener('change', function() {
+            hideAllAndRemoveRequired();
+
+            if (this.value === 'MOBILE') {
+                bankFields.style.display = 'block';
+                mobileFields.style.display = 'block';
+                reqBank.setAttribute('required', 'required');
+                reqDoc.setAttribute('required', 'required');
+                reqPhone.setAttribute('required', 'required');
+            } 
+            else if (this.value === 'TRANSFER') {
+                bankFields.style.display = 'block';
+                transferFields.style.display = 'block';
+                reqBank.setAttribute('required', 'required');
+                reqDoc.setAttribute('required', 'required');
+                reqAccount.setAttribute('required', 'required');
+            } 
+            else if (this.value === 'ZELLE') {
+                zelleFields.style.display = 'block';
+                reqEmail.setAttribute('required', 'required');
+                reqOwner.setAttribute('required', 'required');
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Iniciar Sesión - CrumbCore</title>
+    
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        /* Fondo gradiente clásico de SB Admin 2 */
+        body {
+            background-color: #4e73df;
+            background-image: linear-gradient(180deg, #4e73df 10%, #224abe 100%);
+            background-size: cover;
+            height: 100vh;
+        }
+        .login-card {
+            border-radius: 1rem;
+            border: none;
+        }
+        /* Inputs redondeados estilo 'user' de SB Admin 2 */
+        .form-control-user {
+            border-radius: 10rem;
+            padding: 1.5rem 1rem;
+            font-size: 0.9rem;
+        }
+        .btn-user {
+            border-radius: 10rem;
+            padding: 0.75rem 1rem;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="row justify-content-center align-items-center" style="min-height: 100vh;">
+            <div class="col-xl-4 col-lg-5 col-md-7">
+                
+                <div class="card o-hidden border-0 shadow-lg login-card">
+                    <div class="card-body p-0">
+                        <div class="row">
+                            <div class="col-lg-12">
+                                <div class="p-5">
+                                    
+                                    <div class="text-center mb-4">
+                                        <i class="fas fa-cookie-bite fa-3x text-primary mb-3"></i>
+                                        <h1 class="h4 text-gray-900 font-weight-bold mb-1">CrumbCore</h1>
+                                        <p class="text-muted small">Panel Administrativo</p>
+                                    </div>
+                                    
+                                    <form class="user" method="POST" action="{% url 'login' %}">
+                                        {% csrf_token %}
+                                        
+                                        {% if form.errors %}
+                                            <div class="alert alert-danger text-center small font-weight-bold shadow-sm" style="border-radius: 1rem;">
+                                                Usuario o contraseña incorrectos.
+                                            </div>
+                                        {% endif %}
+                                        
+                                        <div class="form-group">
+                                            <input type="text" class="form-control form-control-user" name="username" placeholder="Usuario administrador" required autofocus>
+                                        </div>
+                                        
+                                        <div class="form-group mb-4">
+                                            <input type="password" class="form-control form-control-user" name="password" placeholder="Contraseña" required>
+                                        </div>
+                                        
+                                        <button type="submit" class="btn btn-primary btn-user btn-block font-weight-bold shadow-sm">
+                                            <i class="fas fa-sign-in-alt mr-1"></i> Ingresar al Sistema
+                                        </button>
+                                    </form>
+                                    
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

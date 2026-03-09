@@ -1,0 +1,178 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Nuevo Pedido - CrumbCore{% endblock %}
+
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Registrar Nuevo Pedido</h1>
+    <a href="{% url 'order_list' %}" class="d-none d-sm-inline-block btn btn-sm btn-secondary shadow-sm">
+        <i class="fas fa-arrow-left fa-sm text-white-50"></i> Volver al Registro
+    </a>
+</div>
+
+{% if not products %}
+<div class="alert alert-warning shadow">
+    <i class="fas fa-exclamation-triangle"></i> No tienes productos activos. <a href="{% url 'create_product' %}" class="font-weight-bold">Añade un producto al catálogo</a> antes de registrar ventas.
+</div>
+{% else %}
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} shadow-sm font-weight-bold alert-dismissible fade show">
+            <i class="fas fa-info-circle mr-1"></i> {{ message }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<form method="POST" action="{% url 'create_order' %}">
+    {% csrf_token %}
+    <div class="row">
+        
+        <div class="col-lg-5">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Detalles de la Entrega</h6>
+                </div>
+                <div class="card-body">
+                    
+                    <div class="form-group">
+                        <label for="customer">Cliente</label>
+                        <select id="customer" name="customer" class="form-control">
+                            <option value="">-- Cliente de Mostrador (Sin registrar) --</option>
+                            {% for customer in customers %}
+                                <option value="{{ customer.id }}">{{ customer.full_name }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted text-right d-block mt-1">¿No está en la lista? <a href="{% url 'create_customer' %}">Registrar cliente</a></small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="expected_delivery_date">Fecha y Hora de Entrega *</label>
+                        <input type="datetime-local" class="form-control" id="expected_delivery_date" name="expected_delivery_date" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="font-weight-bold small text-gray-800">Estado Inicial</label>
+                        <select name="status" class="form-control">
+                            <option value="PENDING" selected>Pendiente</option>
+                            <option value="DELIVERED">Entregada</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="special_notes">Notas Especiales (Alergias, Dedicatorias, etc.)</label>
+                        <textarea class="form-control" id="special_notes" name="special_notes" rows="3" placeholder="Ej. Escribir 'Feliz Cumpleaños' con chocolate blanco..."></textarea>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Productos Solicitados</h6>
+                    <button type="button" class="btn btn-sm btn-success" id="add-product-btn">
+                        <i class="fas fa-plus"></i> Añadir Producto
+                    </button>
+                </div>
+                <div class="card-body" id="order-container">
+                    
+                    <div class="row order-row mb-2" id="empty-row" style="display: none;">
+                        <div class="col-8">
+                            <select name="product_id[]" class="form-control" disabled>
+                                <option value="" disabled selected>Selecciona un producto...</option>
+                                {% for prod in products %}
+                                    <option value="{{ prod.id }}">
+                                        {{ prod.name }} - ${{ prod.sale_price }}
+                                        {% if prod.track_stock %}
+                                            (Quedan: {{ prod.stock_quantity }})
+                                        {% else %}
+                                            (Bajo Pedido)
+                                        {% endif %}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-3">
+                            <input type="number" min="1" step="1" name="quantity[]" class="form-control" placeholder="Cant." disabled>
+                        </div>
+                        <div class="col-1 text-right">
+                            <button type="button" class="btn btn-danger btn-sm remove-row-btn"><i class="fas fa-times"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="row order-row mb-2">
+                        <div class="col-8">
+                            <select name="product_id[]" class="form-control" required>
+                                <option value="" disabled selected>Selecciona un producto...</option>
+                                {% for prod in products %}
+                                    <option value="{{ prod.id }}">
+                                        {{ prod.name }} - ${{ prod.sale_price }}
+                                        {% if prod.track_stock %}
+                                            (Quedan: {{ prod.stock_quantity }})
+                                        {% else %}
+                                            (Bajo Pedido)
+                                        {% endif %}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-3">
+                            <input type="number" min="1" step="1" name="quantity[]" class="form-control" placeholder="Cant." required value="1">
+                        </div>
+                        <div class="col-1 text-right">
+                            <button type="button" class="btn btn-danger btn-sm remove-row-btn" disabled><i class="fas fa-times"></i></button>
+                        </div>
+                    </div>
+                    
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-block btn-lg shadow-sm">
+                <i class="fas fa-check-circle"></i> Confirmar Pedido
+            </button>
+        </div>
+
+    </div>
+</form>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const container = document.getElementById('order-container');
+        const emptyRow = document.getElementById('empty-row');
+        const addBtn = document.getElementById('add-product-btn');
+
+        addBtn.addEventListener('click', function() {
+            const newRow = emptyRow.cloneNode(true);
+            newRow.id = '';
+            newRow.style.display = 'flex';
+            
+            const selectField = newRow.querySelector('select');
+            const inputField = newRow.querySelector('input');
+            
+            selectField.removeAttribute('disabled');
+            selectField.setAttribute('required', 'required');
+            
+            inputField.removeAttribute('disabled');
+            inputField.setAttribute('required', 'required');
+            inputField.value = '1';
+
+            container.appendChild(newRow);
+        });
+
+        container.addEventListener('click', function(e) {
+            if (e.target.closest('.remove-row-btn')) {
+                const row = e.target.closest('.order-row');
+                if (row.id !== 'empty-row') {
+                    row.remove();
+                }
+            }
+        });
+    });
+</script>
+{% endif %}
+{% endblock %}

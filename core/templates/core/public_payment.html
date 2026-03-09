@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reportar Pago - CrumbCore</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fc; }
+        .payment-container { max-width: 550px; margin: 30px auto; }
+        .brand-header { background-color: #4e73df; color: white; padding: 20px; border-radius: 10px 10px 0 0; text-align: center; }
+        .payment-card-label { cursor: pointer; border: 2px solid #e3e6f0; transition: all 0.2s ease-in-out; background-color: white; }
+        .payment-card-label:hover { border-color: #b7b9cc; }
+        .payment-card-label.selected { border-color: #4e73df; background-color: #f8faff; box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075); }
+        .payment-card-label .radio-icon { color: #d1d3e2; transition: color 0.2s; }
+        .payment-card-label.selected .radio-icon { color: #4e73df; }
+    </style>
+</head>
+<body>
+
+<div class="container payment-container">
+    
+    <div class="brand-header shadow-sm">
+        <i class="fas fa-cookie-bite fa-3x mb-2"></i>
+        <h3 class="font-weight-bold mb-0">CrumbCore</h3>
+        <p class="mb-0">Portal de Pagos</p>
+    </div>
+
+    <div class="card shadow-sm border-0" style="border-radius: 0 0 10px 10px;">
+        <div class="card-body p-4">
+            
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-success text-center font-weight-bold shadow-sm">
+                        <i class="fas fa-check-circle fa-2x mb-2"></i><br>
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
+                <h5 class="font-weight-bold text-gray-800 mb-0">Orden #{{ order.id }}</h5>
+                <span class="badge badge-info p-2 shadow-sm"><i class="fas fa-exchange-alt"></i> Tasa: {{ tasa_dia }} Bs</span>
+            </div>
+
+            {% if order.status == 'CANCELLED' %}
+                <div class="text-center py-5 mt-2">
+                    <i class="fas fa-ban fa-4x text-danger mb-3"></i>
+                    <h4 class="font-weight-bold text-danger">Orden Cancelada</h4>
+                    <p class="text-muted">Esta orden ha sido anulada y ya no se encuentra activa para recibir reportes de pago. Si crees que esto es un error, por favor contacta a nuestro equipo.</p>
+                </div>
+
+            {% elif order.balance_due_calculated <= 0 %}
+                <div class="text-center py-5 mt-2">
+                    <i class="fas fa-laugh-beam fa-4x text-success mb-3"></i>
+                    <h4 class="font-weight-bold text-success">¡Orden Pagada!</h4>
+                    <p class="text-muted">El pago de esta orden ha sido confirmado exitosamente. Gracias por su compra.</p>
+                </div>
+
+            {% elif max_reportable <= 0 %}
+                <div class="text-center py-5 mt-2">
+                    <i class="fas fa-hourglass-half fa-4x text-info mb-3"></i>
+                    <h4 class="font-weight-bold text-info">Pago en Revisión</h4>
+                    <p class="text-muted">Tus reportes de pago cubren el total de la orden y están siendo verificados por nuestro equipo. No es necesario que reportes nuevamente.</p>
+                </div>
+
+            {% else %}
+
+                {% if amount_pending > 0 %}
+                    <div class="alert alert-info text-center shadow-sm mb-4">
+                        <i class="fas fa-clock fa-2x mb-2"></i>
+                        <h6 class="font-weight-bold mb-1">Tienes pagos en revisión por: ${{ amount_pending }}</h6>
+                        <small>Resta por reportar el monto mostrado abajo.</small>
+                    </div>
+                {% endif %}
+
+                <div class="alert alert-warning text-center shadow-sm mb-4">
+                    <span class="d-block small text-uppercase font-weight-bold">Restante a Reportar</span>
+                    <h3 class="font-weight-bold mb-0 text-danger">${{ max_reportable }}</h3>
+                    <span class="d-block font-weight-bold text-dark">Equivalente: Bs. {{ max_reportable_bs }}</span>
+                </div>
+
+                <h6 class="font-weight-bold text-gray-800 mb-3">1. Selecciona el método de pago:</h6>
+                
+                <div class="row mb-4">
+                    {% for dest in destinations %}
+                        <div class="col-12 mb-2">
+                            <label class="card payment-card-label rounded shadow-sm w-100 mb-0">
+                                <input type="radio" name="dest_selector" class="d-none payment-radio" data-type="{{ dest.destination_type }}" data-id="{{ dest.id }}">
+                                <div class="card-body p-3">
+                                    <div class="d-flex w-100 justify-content-between align-items-center mb-2">
+                                        <h6 class="mb-0 font-weight-bold text-primary">{{ dest.name }}</h6>
+                                        <i class="far fa-circle fa-lg radio-icon"></i>
+                                    </div>
+                                    <div class="small text-gray-700">
+                                        {% if dest.destination_type == 'MOBILE' %}
+                                            <strong>Banco:</strong> {{ dest.bank }} &nbsp;|&nbsp; <strong>Tel:</strong> {{ dest.phone }}<br>
+                                            <strong>Doc:</strong> {{ dest.document_type }}-{{ dest.document_number }}
+                                        {% elif dest.destination_type == 'TRANSFER' %}
+                                            <strong>Banco:</strong> {{ dest.bank }}<br>
+                                            <strong>Cuenta:</strong> {{ dest.account_number }}<br>
+                                            <strong>Doc:</strong> {{ dest.document_type }}-{{ dest.document_number }}
+                                        {% elif dest.destination_type == 'ZELLE' %}
+                                            <strong>Correo:</strong> {{ dest.email }}<br>
+                                            <strong>Titular:</strong> {{ dest.owner_name }}
+                                        {% elif dest.destination_type == 'CASH' %}
+                                            Pago en efectivo al momento de la entrega o recogida en tienda.
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    {% empty %}
+                        <div class="col-12 text-center text-danger font-weight-bold">
+                            No hay métodos de pago habilitados.
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <form method="POST" enctype="multipart/form-data" id="dynamic_payment_form" style="display: none;">
+                    {% csrf_token %}
+                    <input type="hidden" name="payment_method" id="hidden_payment_method">
+                    <input type="hidden" name="destination_id" id="hidden_destination_id">
+                    <input type="hidden" name="amount" id="final_usd_amount">
+
+                    <h6 class="font-weight-bold text-gray-800 mb-3 border-top pt-4">2. Ingresa los detalles de tu pago:</h6>
+
+                    <div id="group_bs" style="display: none;" class="form-group">
+                        <label class="font-weight-bold text-gray-800 small">Monto exacto transferido en Bolívares *</label>
+                        <div class="input-group">
+                            <div class="input-group-prepend"><span class="input-group-text font-weight-bold text-primary">Bs</span></div>
+                            <input type="number" id="input_bs" step="0.01" max="{{ max_reportable_bs }}" class="form-control form-control-lg" placeholder="0.00">
+                        </div>
+                        <small class="text-muted d-block mt-1">Tu pago se registrará por el equivalente de: <strong class="text-success">$<span id="display_usd_calc">0.00</span></strong></small>
+                    </div>
+
+                    <div id="group_usd" style="display: none;" class="form-group">
+                        <label class="font-weight-bold text-gray-800 small">Monto exacto enviado en Dólares *</label>
+                        <div class="input-group">
+                            <div class="input-group-prepend"><span class="input-group-text font-weight-bold text-success">$</span></div>
+                            <input type="number" id="input_usd" step="0.01" max="{{ max_reportable }}" class="form-control form-control-lg" placeholder="0.00">
+                        </div>
+                        <small class="text-muted d-block mt-1">Referencia al cambio: <strong>Bs. <span id="display_bs_calc">0.00</span></strong></small>
+                    </div>
+
+                    <div class="form-group mt-3">
+                        <label class="font-weight-bold text-gray-800 small">Número de Referencia *</label>
+                        <input type="text" name="reference_number" class="form-control" placeholder="Ref. bancaria, captura o nombre de quien envía" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="font-weight-bold text-gray-800 small">Comprobante (Obligatorio para pagos digitales)</label>
+                        <input type="file" name="receipt" class="form-control-file border p-2 rounded bg-light" accept="image/*,.pdf">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block btn-lg font-weight-bold mt-4 shadow-sm" id="submit_btn" disabled>
+                        <i class="fas fa-paper-plane mr-1"></i> Enviar Reporte
+                    </button>
+                </form>
+
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const tasaDia = parseFloat("{{ tasa_dia }}".replace(',', '.'));
+        const maxUsd = parseFloat("{{ max_reportable }}".replace(',', '.'));
+        const maxBs = parseFloat("{{ max_reportable_bs }}".replace(',', '.'));
+
+        const radios = document.querySelectorAll('.payment-radio');
+        const form = document.getElementById('dynamic_payment_form');
+        const hiddenMethod = document.getElementById('hidden_payment_method');
+        const hiddenDestination = document.getElementById('hidden_destination_id'); // NUEVO
+        const finalUsdAmount = document.getElementById('final_usd_amount');
+        const submitBtn = document.getElementById('submit_btn');
+
+        const groupBs = document.getElementById('group_bs');
+        const inputBs = document.getElementById('input_bs');
+        const displayUsdCalc = document.getElementById('display_usd_calc');
+
+        const groupUsd = document.getElementById('group_usd');
+        const inputUsd = document.getElementById('input_usd');
+        const displayBsCalc = document.getElementById('display_bs_calc');
+
+        radios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                document.querySelectorAll('.payment-card-label').forEach(label => {
+                    label.classList.remove('selected');
+                    label.querySelector('.radio-icon').classList.replace('fa-check-circle', 'fa-circle');
+                    label.querySelector('.radio-icon').classList.replace('fas', 'far');
+                });
+
+                const selectedLabel = this.closest('.payment-card-label');
+                selectedLabel.classList.add('selected');
+                const icon = selectedLabel.querySelector('.radio-icon');
+                icon.classList.replace('fa-circle', 'fa-check-circle');
+                icon.classList.replace('far', 'fas');
+
+                if(form) form.style.display = 'block';
+                
+                const destType = this.getAttribute('data-type');
+                const destId = this.getAttribute('data-id'); // NUEVO
+                
+                if(hiddenMethod) hiddenMethod.value = destType;
+                if(hiddenDestination) hiddenDestination.value = destId; // NUEVO
+
+                if(inputBs) inputBs.value = '';
+                if(inputUsd) inputUsd.value = '';
+                if(finalUsdAmount) finalUsdAmount.value = '';
+                if(submitBtn) submitBtn.disabled = true;
+
+                if (destType === 'MOBILE') {
+                    if(groupBs) groupBs.style.display = 'block';
+                    if(groupUsd) groupUsd.style.display = 'none';
+                    if(inputBs) inputBs.setAttribute('required', 'required');
+                    if(inputUsd) inputUsd.removeAttribute('required');
+                    setTimeout(() => inputBs && inputBs.focus(), 100);
+                } else {
+                    if(groupBs) groupBs.style.display = 'none';
+                    if(groupUsd) groupUsd.style.display = 'block';
+                    if(inputUsd) inputUsd.setAttribute('required', 'required');
+                    if(inputBs) inputBs.removeAttribute('required');
+                    setTimeout(() => inputUsd && inputUsd.focus(), 100);
+                }
+            });
+        });
+
+        function enforceLimit(input, maxVal) {
+            let val = parseFloat(input.value);
+            if (val > maxVal) { input.value = maxVal; return maxVal; }
+            if (val < 0) { input.value = 0; return 0; }
+            return val;
+        }
+
+        if(inputBs) {
+            inputBs.addEventListener('input', function() {
+                let val = enforceLimit(this, maxBs);
+                if (!isNaN(val) && val > 0) {
+                    let usdEq = (val / tasaDia).toFixed(2);
+                    displayUsdCalc.innerText = usdEq;
+                    finalUsdAmount.value = usdEq; 
+                    submitBtn.disabled = false;
+                } else {
+                    displayUsdCalc.innerText = '0.00';
+                    finalUsdAmount.value = '';
+                    submitBtn.disabled = true;
+                }
+            });
+        }
+
+        if(inputUsd) {
+            inputUsd.addEventListener('input', function() {
+                let val = enforceLimit(this, maxUsd);
+                if (!isNaN(val) && val > 0) {
+                    let bsEq = (val * tasaDia).toFixed(2);
+                    displayBsCalc.innerText = bsEq;
+                    finalUsdAmount.value = val.toFixed(2); 
+                    submitBtn.disabled = false;
+                } else {
+                    displayBsCalc.innerText = '0.00';
+                    finalUsdAmount.value = '';
+                    submitBtn.disabled = true;
+                }
+            });
+        }
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,221 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Dashboard - CrumbCore{% endblock %}
+
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Panel Principal</h1>
+    <div>
+        <span class="badge badge-info p-2 shadow-sm mr-2" style="font-size: 0.9rem;">
+            Ventas Hoy: ${{ ventas_hoy }}
+        </span>
+        <a href="{% url 'manage_exchange_rate' %}" class="badge badge-primary p-2 shadow-sm" style="text-decoration: none; font-size: 0.9rem;">
+            <i class="fas fa-exchange-alt fa-xs mr-1"></i> Tasa del día: 1$ = {{ tasa_dia }} Bs
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Ventas (Este Mes)</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">${{ ventas_mes }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-calendar-alt fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-danger shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Cuentas por Cobrar</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">${{ deuda_total }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-hand-holding-usd fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-{% if pagos_por_verificar > 0 %}warning{% else %}success{% endif %} shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-{% if pagos_por_verificar > 0 %}warning{% else %}success{% endif %} text-uppercase mb-1">
+                            Pagos por Verificar
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ pagos_por_verificar }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-file-invoice-dollar fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Entregas para Hoy</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ entregas_hoy_count }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-truck fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Próximas Entregas (48 Hrs)</h6>
+                <a href="{% url 'order_list' %}" class="btn btn-sm btn-primary shadow-sm">Ver Todas</a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead class="bg-light">
+                            <tr>
+                                <th>Pedido</th>
+                                <th>Cliente</th>
+                                <th>Fecha y Hora</th>
+                                <th class="text-center">Estado</th>
+                                <th class="text-center">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entrega in proximas_entregas %}
+                            <tr>
+                                <td class="align-middle font-weight-bold">#{{ entrega.id }}</td>
+                                <td class="align-middle">{{ entrega.customer.full_name|default:"Venta de Mostrador" }}</td>
+                                <td class="align-middle">{{ entrega.expected_delivery_date|date:"d/m/Y - h:i A" }}</td>
+                                <td class="align-middle text-center">
+                                    <span class="badge badge-info px-2 py-1">{{ entrega.get_status_display }}</span>
+                                </td>
+                                <td class="align-middle text-center">
+                                    <a href="{% url 'order_detail' entrega.id %}" class="btn btn-sm btn-outline-info rounded-circle" title="Ver Detalles">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="5" class="text-center py-4 text-muted">No hay entregas programadas próximamente.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-danger"><i class="fas fa-hand-holding-usd mr-1"></i> Top Deudores</h6>
+            </div>
+            <div class="card-body">
+                {% for deudor in deudores %}
+                <div class="mb-3">
+                    <div class="small font-weight-bold text-gray-800">{{ deudor.cliente }} 
+                        
+                        <div class="float-right">
+                            <span class="text-danger font-weight-bold mr-2">${{ deudor.monto }}</span>
+                            
+                            {% if deudor.customer_id %}
+                                <button type="button" class="btn btn-success btn-sm py-0 px-2 rounded shadow-sm" title="Cobrar Estado de Cuenta" onclick="shareBulkPaymentLink('{{ request.scheme }}://{{ request.get_host }}{% url 'customer_bulk_payment' deudor.customer_id %}', '{{ deudor.telefono|default:'' }}', '{{ deudor.cliente|escapejs }}')">
+                                    <i class="fab fa-whatsapp"></i>
+                                </button>
+                            {% else %}
+                                <button type="button" class="btn btn-secondary btn-sm py-0 px-2 rounded shadow-sm" title="Copiar Link de Orden Individual" onclick="shareBulkPaymentLink('{{ request.scheme }}://{{ request.get_host }}{% url 'public_payment_link' deudor.id %}', '', 'Cliente Mostrador')">
+                                    <i class="fas fa-link"></i>
+                                </button>
+                            {% endif %}
+                        </div>
+
+                    </div>
+                    <div class="text-xs text-muted">
+                        Última Orden <a href="{% url 'order_detail' deudor.id %}">#{{ deudor.id }}</a> - Entrega: {{ deudor.fecha_entrega|date:"d/m/Y" }}
+                    </div>
+                    <hr class="my-2">
+                </div>
+                {% empty %}
+                <p class="text-center text-success small font-weight-bold my-3"><i class="fas fa-check-circle"></i> ¡No hay cuentas pendientes por cobrar!</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        {% if alertas_stock_ing or alertas_stock_prod %}
+        <div class="card shadow mb-4 border-left-warning">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-warning"><i class="fas fa-exclamation-triangle mr-1"></i> Stock Crítico</h6>
+            </div>
+            <div class="card-body">
+                
+                {% if alertas_stock_prod %}
+                    <div class="text-xs font-weight-bold text-uppercase text-muted mb-2">Productos en Vitrina (Hornear)</div>
+                    {% for prod in alertas_stock_prod %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small font-weight-bold text-gray-800">{{ prod.name }}</span>
+                        <span class="badge badge-pill badge-danger">{{ prod.stock_quantity }} unid.</span>
+                    </div>
+                    {% endfor %}
+                    <hr>
+                {% endif %}
+
+                {% if alertas_stock_ing %}
+                    <div class="text-xs font-weight-bold text-uppercase text-muted mb-2">Materia Prima (Comprar)</div>
+                    {% for ing in alertas_stock_ing %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small font-weight-bold text-gray-800">{{ ing.name }}</span>
+                        <span class="badge badge-pill badge-warning text-dark">{{ ing.stock_quantity }} {{ ing.get_measurement_unit_display|lower }}</span>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+<script>
+    function shareBulkPaymentLink(url, phone, name) {
+        // 1. Copiamos al portapapeles por seguridad
+        navigator.clipboard.writeText(url).catch(err => console.error("Error copiando al portapapeles: ", err));
+
+        // 2. Evaluamos WhatsApp
+        if (phone && phone.trim() !== '' && phone !== 'None') {
+            let cleanPhone = phone.replace(/\D/g, '');
+            if (cleanPhone.length > 0) {
+                let message = `¡Hola ${name}! 👋\n\nAquí tienes el enlace seguro para ver tu estado de cuenta y liquidar tus órdenes pendientes en un solo pago:\n${url}\n\nGracias por preferir a CrumbCore. 🍪`;
+                let waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+                window.open(waUrl, '_blank');
+                return;
+            }
+        }
+        
+        // 3. Fallback si no hay teléfono
+        alert("¡Link de estado de cuenta copiado con éxito!");
+    }
+</script>
+{% endblock %}

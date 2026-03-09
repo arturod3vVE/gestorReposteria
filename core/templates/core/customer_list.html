@@ -1,0 +1,147 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Directorio de Clientes - CrumbCore{% endblock %}
+
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Directorio de Clientes</h1>
+    <a href="{% url 'create_customer' %}" class="btn btn-sm btn-primary shadow-sm">
+        <i class="fas fa-plus fa-sm text-white-50"></i> Nuevo Cliente
+    </a>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} shadow-sm font-weight-bold alert-dismissible fade show">
+            {{ message }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">Cartera de Clientes</h6>
+        
+        <form method="GET" class="form-inline d-none d-sm-inline-block">
+            <div class="input-group input-group-sm">
+                <input type="text" name="search" class="form-control bg-light border-0 small" placeholder="Buscar por nombre..." value="{{ search_query }}">
+                <div class="input-group-append">
+                    <button class="btn btn-primary" type="submit">
+                        <i class="fas fa-search fa-sm"></i>
+                    </button>
+                    {% if search_query %}
+                    <a href="{% url 'customer_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-times fa-sm"></i>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+    </div>
+    
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover" width="100%" cellspacing="0">
+                <thead class="bg-light">
+                    <tr>
+                        <th>Nombre Completo</th>
+                        <th>Contacto</th>
+                        <th>Dirección de Entrega</th>
+                        <th class="text-center">Pedidos Totales</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for customer in customers %}
+                    <tr>
+                        <td class="align-middle font-weight-bold text-gray-800">{{ customer.full_name }}</td>
+                        <td class="align-middle">
+                            {% if customer.phone %}<i class="fas fa-phone fa-sm text-muted mr-1"></i> {{ customer.phone }}<br>{% endif %}
+                            {% if customer.email %}<i class="fas fa-envelope fa-sm text-muted mr-1"></i> {{ customer.email }}{% endif %}
+                        </td>
+                        <td class="align-middle small">{{ customer.delivery_address|default:"<span class='text-muted font-italic'>No registrada</span>"|safe }}</td>
+                        <td class="align-middle text-center">
+                            <span class="badge badge-{% if customer.total_orders > 0 %}success{% else %}secondary{% endif %} px-2 py-1">
+                                {{ customer.total_orders }}
+                            </span>
+                        </td>
+                        <td class="align-middle text-center">
+                            <button type="button" class="btn btn-success btn-circle btn-sm shadow-sm mr-1" title="Enviar Estado de Cuenta" onclick="shareBulkPaymentLink('{{ request.scheme }}://{{ request.get_host }}{% url 'customer_bulk_payment' customer.id %}', '{{ customer.phone|default:'' }}', '{{ customer.full_name|escapejs }}')">
+                                <i class="{% if customer.phone %}fab fa-whatsapp{% else %}fas fa-link{% endif %}"></i>
+                            </button>
+                            <a href="{% url 'edit_customer' customer.pk %}" class="btn btn-warning btn-circle btn-sm shadow-sm" title="Editar Cliente">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <form method="POST" action="{% url 'delete_customer' customer.pk %}" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger btn-circle btn-sm shadow-sm ml-1" title="Eliminar Cliente" onclick="return confirm('¿Estás seguro de eliminar a {{ customer.full_name|escapejs }}? Sus órdenes previas se mantendrán en el sistema.');">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center py-5 text-gray-500">No se encontraron clientes registrados.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if customers.has_other_pages %}
+        <nav aria-label="Navegación de clientes" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if customers.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link shadow-sm" href="?page={{ customers.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">Anterior</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link text-muted">Anterior</span></li>
+                {% endif %}
+
+                {% for i in customers.paginator.page_range %}
+                    {% if customers.number == i %}
+                        <li class="page-item active shadow-sm"><span class="page-link">{{ i }}</span></li>
+                    {% else %}
+                        <li class="page-item">
+                            <a class="page-link shadow-sm" href="?page={{ i }}{% if search_query %}&search={{ search_query }}{% endif %}">{{ i }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if customers.has_next %}
+                    <li class="page-item">
+                        <a class="page-link shadow-sm" href="?page={{ customers.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">Siguiente</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link text-muted">Siguiente</span></li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+
+    </div>
+</div>
+<script>
+    function shareBulkPaymentLink(url, phone, name) {
+        // 1. Copiamos al portapapeles por seguridad
+        navigator.clipboard.writeText(url).catch(err => console.error("Error copiando al portapapeles: ", err));
+
+        // 2. Evaluamos WhatsApp
+        if (phone && phone.trim() !== '' && phone !== 'None') {
+            let cleanPhone = phone.replace(/\D/g, '');
+            if (cleanPhone.length > 0) {
+                let message = `¡Hola ${name}! 👋\n\nAquí tienes el enlace seguro para ver tu estado de cuenta y liquidar tus órdenes pendientes en un solo pago:\n${url}\n\nGracias por preferir a CrumbCore. 🍪`;
+                let waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+                window.open(waUrl, '_blank');
+                return;
+            }
+        }
+        
+        // 3. Fallback si no hay teléfono
+        alert("¡Link de estado de cuenta copiado con éxito!");
+    }
+</script>
+{% endblock %}

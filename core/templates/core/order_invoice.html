@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Factura - Orden #{{ order.id }}</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #fff;
+            color: #333;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-size: 14px;
+        }
+        .invoice-container {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 30px;
+            border: 1px solid #eee;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
+        }
+        .invoice-header {
+            border-bottom: 2px solid #333;
+            padding-bottom: 20px;
+            margin-bottom: 20px;
+        }
+        .table th {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #333;
+        }
+        /* Reglas específicas para cuando se mande a la impresora física */
+        @media print {
+            .invoice-container {
+                margin: 0;
+                padding: 0;
+                border: none;
+                box-shadow: none;
+                width: 100%;
+            }
+            .d-print-none {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="invoice-container">
+    
+    <div class="text-right mb-3 d-print-none">
+        <button onclick="window.print()" class="btn btn-primary">
+            Imprimir Documento
+        </button>
+    </div>
+
+    <div class="row invoice-header">
+        <div class="col-sm-6">
+            <h2 class="font-weight-bold mb-0">CrumbCore</h2>
+            <p class="text-muted mb-0">Repostería & Panadería</p>
+        </div>
+        <div class="col-sm-6 text-right">
+            <h4 class="font-weight-bold">NOTA DE ENTREGA</h4>
+            <p class="mb-0"><strong>Orden #:</strong> {{ order.id }}</p>
+            <p class="mb-0"><strong>Fecha:</strong> {{ order.created_at|date:"d/m/Y" }}</p>
+            <p class="mb-0"><strong>Entrega:</strong> {{ order.expected_delivery_date|date:"d/m/Y h:i A" }}</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-sm-12">
+            <h6 class="text-muted text-uppercase font-weight-bold">Facturado a:</h6>
+            {% if order.customer %}
+                <h5 class="font-weight-bold mb-1">{{ order.customer.full_name }}</h5>
+                {% if order.customer.phone %}<div>Teléfono: {{ order.customer.phone }}</div>{% endif %}
+                {% if order.customer.email %}<div>Correo: {{ order.customer.email }}</div>{% endif %}
+                {% if order.customer.delivery_address %}
+                    <div class="mt-2"><strong>Dirección:</strong> {{ order.customer.delivery_address }}</div>
+                {% endif %}
+            {% else %}
+                <h5 class="font-weight-bold mb-1">Cliente de Mostrador</h5>
+            {% endif %}
+        </div>
+    </div>
+
+    <table class="table table-sm">
+        <thead>
+            <tr>
+                <th>Descripción del Producto</th>
+                <th class="text-center">Cant.</th>
+                <th class="text-right">Precio Unit.</th>
+                <th class="text-right">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in order.items.all %}
+            <tr>
+                <td>{{ item.product.name }}</td>
+                <td class="text-center">{{ item.quantity }}</td>
+                <td class="text-right">${{ item.unit_price }}</td>
+                <td class="text-right font-weight-bold">${{ item.subtotal }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="text-center">No hay productos registrados.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="row mt-4">
+        <div class="col-sm-7">
+            {% if order.special_notes %}
+            <p class="text-muted small"><strong>Instrucciones Especiales:</strong><br>
+                {{ order.special_notes }}
+            </p>
+            {% endif %}
+            
+            <p class="text-muted small mt-3">
+                <strong>Tasa de Cambio (BCV):</strong> {{ tasa_dia }} Bs/USD<br>
+                <em>Los pagos en moneda nacional se calculan con la tasa vigente al momento de la operación.</em>
+            </p>
+        </div>
+        
+        <div class="col-sm-5">
+            <table class="table table-sm table-borderless">
+                <tr>
+                    <th class="text-right">Subtotal:</th>
+                    <td class="text-right">${{ order.total_calculated }}</td>
+                </tr>
+                <tr>
+                    <th class="text-right">Abonado:</th>
+                    <td class="text-right text-success">-${{ order.amount_paid }}</td>
+                </tr>
+                <tr class="border-top">
+                    <th class="text-right h5 mb-0">Total a Pagar:</th>
+                    <td class="text-right h5 mb-0 font-weight-bold">${{ order.balance_due_calculated }}</td>
+                </tr>
+                {% if order.balance_due_calculated > 0 %}
+                <tr>
+                    <th class="text-right text-muted">Equivalente en Bs:</th>
+                    <td class="text-right font-weight-bold">Bs. {{ balance_bs }}</td>
+                </tr>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+
+    <div class="text-center mt-5 pt-3 border-top">
+        <p class="font-weight-bold mb-0">¡Gracias por su preferencia!</p>
+        <p class="text-muted small">CrumbCore - Caracas, Distrito Capital, Venezuela</p>
+    </div>
+
+</div>
+
+<script>
+    window.onload = function() {
+        // Da un pequeño margen de tiempo para que carguen los estilos de Bootstrap
+        setTimeout(function() {
+            window.print();
+        }, 500);
+    }
+</script>
+
+</body>
+</html>

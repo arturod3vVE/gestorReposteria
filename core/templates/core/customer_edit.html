@@ -1,0 +1,52 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Editar Cliente - CrumbCore{% endblock %}
+
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Editar Perfil de Cliente</h1>
+    <a href="{% url 'customer_list' %}" class="btn btn-sm btn-secondary shadow-sm">
+        <i class="fas fa-arrow-left fa-sm text-white-50"></i> Volver al Directorio
+    </a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Información de {{ customer.full_name }}</h6>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{% url 'edit_customer' customer.pk %}">
+                    {% csrf_token %}
+                    
+                    <div class="form-group">
+                        <label class="font-weight-bold small text-gray-800">Nombre Completo *</label>
+                        <input type="text" name="full_name" class="form-control" value="{{ customer.full_name }}" required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label class="font-weight-bold small text-gray-800">Teléfono (WhatsApp)</label>
+                            <input type="text" name="phone" class="form-control" value="{{ customer.phone|default:'' }}" placeholder="Ej. 04141234567">
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label class="font-weight-bold small text-gray-800">Correo Electrónico</label>
+                            <input type="email" name="email" class="form-control" value="{{ customer.email|default:'' }}" placeholder="ejemplo@correo.com">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="font-weight-bold small text-gray-800">Dirección de Entrega Predeterminada</label>
+                        <textarea name="delivery_address" class="form-control" rows="3">{{ customer.delivery_address|default:'' }}</textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block mt-4 shadow-sm font-weight-bold">
+                        <i class="fas fa-save mr-1"></i> Guardar Cambios
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

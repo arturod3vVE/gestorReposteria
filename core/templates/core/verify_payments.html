@@ -1,0 +1,143 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Verificación de Pagos - Orden #{{ order.id }}{% endblock %}
+
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Panel de Verificación de Pagos</h1>
+    <a href="{% url 'order_detail' order.id %}" class="btn btn-sm btn-secondary shadow-sm">
+        <i class="fas fa-arrow-left fa-sm text-white-50"></i> Volver a Detalles
+    </a>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} shadow-sm font-weight-bold">
+            <i class="fas fa-info-circle mr-2"></i> {{ message }}
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="row">
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow border-left-primary h-100">
+            <div class="card-body">
+                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Orden #{{ order.id }}</div>
+                <div class="h5 mb-2 font-weight-bold text-gray-800">{{ order.customer.full_name|default:"Cliente Mostrador" }}</div>
+                
+                <hr>
+                <div class="d-flex justify-content-between mb-1">
+                    <span class="text-gray-600">Total de la Orden:</span>
+                    <span class="font-weight-bold">${{ order.total_calculated }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-1">
+                    <span class="text-gray-600">Abonado (Verificado):</span>
+                    <span class="font-weight-bold text-success">${{ order.amount_paid }}</span>
+                </div>
+                <div class="d-flex justify-content-between mt-2 pt-2 border-top">
+                    <span class="text-gray-800 font-weight-bold">Saldo Pendiente:</span>
+                    <span class="font-weight-bold {% if order.balance_due_calculated > 0 %}text-danger{% else %}text-success{% endif %}">
+                        ${{ order.balance_due_calculated }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Pagos Reportados</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover">
+                        <thead class="bg-light">
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Método y Ref.</th>
+                                <th class="text-right">Monto</th>
+                                <th class="text-center">Comprobante</th>
+                                <th class="text-center">Estado / Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for payment in payments %}
+                            <tr>
+                                <td class="align-middle">{{ payment.reported_at|date:"d/m/Y h:i A" }}</td>
+                                <td class="align-middle">
+                                    <strong>{{ payment.get_payment_method_display }}</strong>
+                                    
+                                    {% if payment.destination %}
+                                        <br>
+                                        <span class="small text-info font-weight-bold">
+                                            <i class="fas fa-university"></i> {{ payment.destination.name }}
+                                            {% if payment.destination.bank %} ({{ payment.destination.bank }}){% endif %}
+                                        </span>
+                                    {% endif %}
+                                    
+                                    <br><span class="small text-muted">Ref: {{ payment.reference_number }}</span>
+                                    
+                                    {% if payment.transaction_group %}
+                                        <div class="mt-2 p-2 border border-info rounded bg-white small shadow-sm">
+                                            <span class="badge badge-info mb-1"><i class="fas fa-layer-group"></i> Liquidación Múltiple</span>
+                                            <ul class="pl-3 mb-0 text-muted">
+                                                <li>Esta Orden: <strong>${{ payment.amount }}</strong></li>
+                                                {% for sibling in payment.siblings %}
+                                                    <li>Orden <a href="{% url 'order_detail' sibling.order.id %}" target="_blank">#{{ sibling.order.id }}</a>: <strong>${{ sibling.amount }}</strong></li>
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+                                    {% endif %}
+                                </td>
+                                <td class="align-middle text-right font-weight-bold">${{ payment.amount }}</td>
+                                <td class="align-middle text-center">
+                                    {% if payment.receipt %}
+                                        <a href="{{ payment.receipt.url }}" target="_blank" class="btn btn-sm btn-info shadow-sm" title="Ver Comprobante">
+                                            <i class="fas fa-image"></i> Ver Imagen
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted small">Sin archivo</span>
+                                    {% endif %}
+                                </td>
+                                <td class="align-middle text-center">
+                                    {% if payment.is_verified %}
+                                        <span class="badge badge-success px-3 py-2"><i class="fas fa-check-double"></i> Verificado</span>
+                                    {% else %}
+                                        <div class="d-flex justify-content-center">
+                                            
+                                            <form method="POST" action="{% url 'verify_order_payments' order.pk %}" class="mr-1">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="payment_id" value="{{ payment.id }}">
+                                                <input type="hidden" name="action" value="approve">
+                                                <button type="submit" class="btn btn-success btn-sm shadow-sm" title="Aprobar Pago" 
+                                                    onclick="return confirm('{% if payment.transaction_group %}¡ATENCIÓN! Este pago es parte de una Liquidación Múltiple. Al aprobarlo, también se aprobarán automáticamente los demás pagos asociados a este comprobante en otras órdenes. ¿Confirmas que los fondos totales están en tu cuenta?{% else %}¿Confirmas que los fondos por ${{ payment.amount }} ya están en la cuenta?{% endif %}');">
+                                                    <i class="fas fa-check"></i> Aprobar
+                                                </button>
+                                            </form>
+                                            
+                                            <form method="POST" action="{% url 'verify_order_payments' order.pk %}">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="payment_id" value="{{ payment.id }}">
+                                                <input type="hidden" name="action" value="reject">
+                                                <button type="submit" class="btn btn-danger btn-sm shadow-sm" title="Rechazar y Eliminar Pago" 
+                                                    onclick="return confirm('{% if payment.transaction_group %}¡ATENCIÓN! Al rechazar esta Liquidación Múltiple, se ELIMINARÁN TODOS los pagos asociados en las demás órdenes. ¿Estás seguro?{% else %}¿Estás seguro de rechazar y eliminar este pago individual?{% endif %}');">
+                                                    <i class="fas fa-times"></i> Rechazar
+                                                </button>
+                                            </form>
+                                            
+                                        </div>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="5" class="text-center py-4 text-muted">Aún no se han reportado pagos para esta orden.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
