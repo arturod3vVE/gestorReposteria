@@ -1,0 +1,101 @@
+/* ========================================================
+   TEMA REPOSTERÍA: Sobrescribiendo SB Admin 2
+   ======================================================== */
+
+/* Barra lateral y fondos primarios (Rosa Pastel Degradado) */
+.bg-gradient-primary {
+    background-color: #f8bbd0 !important;
+    background-image: linear-gradient(180deg, #f8bbd0 10%, #f48fb1 100%) !important;
+    background-size: cover !important;
+}
+
+/* Textos primarios y enlaces */
+.text-primary {
+    color: #e91e63 !important;
+}
+
+a.text-primary:hover, a.text-primary:focus {
+    color: #c2185b !important;
+}
+
+/* Botones principales */
+.btn-primary {
+    background-color: #f48fb1 !important;
+    border-color: #f48fb1 !important;
+    color: #ffffff !important;
+}
+
+.btn-primary:hover, .btn-primary:focus, .btn-primary:active {
+    background-color: #f06292 !important;
+    border-color: #f06292 !important;
+    box-shadow: 0 0 0 0.2rem rgba(244, 143, 177, 0.5) !important;
+}
+
+/* Bordes de tarjetas (Izquierda y Abajo) */
+.border-left-primary {
+    border-left: 0.25rem solid #f48fb1 !important;
+}
+
+.border-bottom-primary {
+    border-bottom: 0.25rem solid #f48fb1 !important;
+}
+
+/* Progress bars (Barras de progreso) */
+.progress-bar {
+    background-color: #f48fb1 !important;
+}
+
+/* ========================================================
+   PALETA SECUNDARIA: Sabores de Repostería
+   ======================================================== */
+
+/* Éxito (Verde Pistacho / Menta) */
+.btn-success, .badge-success, .alert-success {
+    background-color: #a8d5ba !important;
+    border-color: #a8d5ba !important;
+    color: #1b5e20 !important; /* Texto verde oscuro para contraste */
+}
+.btn-success:hover, .btn-success:focus {
+    background-color: #8fbc8f !important;
+    border-color: #8fbc8f !important;
+}
+
+/* Info (Mora / Lavanda suave) */
+.btn-info, .badge-info, .alert-info {
+    background-color: #b39ddb !important;
+    border-color: #b39ddb !important;
+    color: #ffffff !important;
+}
+.btn-info:hover, .btn-info:focus {
+    background-color: #9575cd !important;
+    border-color: #9575cd !important;
+}
+
+/* Peligro/Cancelar (Fresa / Coral pastel) */
+.btn-danger, .badge-danger, .alert-danger {
+    background-color: #ffb6b9 !important;
+    border-color: #ffb6b9 !important;
+    color: #b71c1c !important; /* Texto rojo oscuro */
+}
+.btn-danger:hover, .btn-danger:focus {
+    background-color: #fa9194 !important;
+    border-color: #fa9194 !important;
+}
+
+/* Secundario (Café Latte / Moka) */
+.btn-secondary, .badge-secondary, .alert-secondary {
+    background-color: #d7ccc8 !important;
+    border-color: #d7ccc8 !important;
+    color: #4e342e !important; /* Marrón oscuro */
+}
+.btn-secondary:hover, .btn-secondary:focus {
+    background-color: #bcaaa4 !important;
+    border-color: #bcaaa4 !important;
+}
+
+/* Advertencia (Crema / Vainilla) */
+.badge-warning, .alert-warning {
+    background-color: #fff9c4 !important;
+    color: #f57f17 !important;
+    border: 1px solid #ffe082 !important;
+}

@@ -7,14 +7,54 @@
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f8f9fc; }
+        /* Fondo ligeramente cálido para dar sensación de limpieza y dulzura */
+        body { background-color: #fef9fa; }
         .payment-container { max-width: 550px; margin: 30px auto; }
-        .brand-header { background-color: #4e73df; color: white; padding: 20px; border-radius: 10px 10px 0 0; text-align: center; }
+        
+        /* Encabezado con el degradado rosa de la marca */
+        .brand-header { 
+            background-color: #f8bbd0;
+            background-image: linear-gradient(180deg, #f8bbd0 10%, #f48fb1 100%);
+            color: white; 
+            padding: 20px; 
+            border-radius: 10px 10px 0 0; 
+            text-align: center; 
+        }
+        
         .payment-card-label { cursor: pointer; border: 2px solid #e3e6f0; transition: all 0.2s ease-in-out; background-color: white; }
-        .payment-card-label:hover { border-color: #b7b9cc; }
-        .payment-card-label.selected { border-color: #4e73df; background-color: #f8faff; box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075); }
+        .payment-card-label:hover { border-color: #f8bbd0; }
+        
+        /* Tarjeta seleccionada con borde rosa y fondo pastel muy suave */
+        .payment-card-label.selected { 
+            border-color: #f48fb1; 
+            background-color: #fdf2f6; 
+            box-shadow: 0 0.125rem 0.25rem rgba(244, 143, 177, 0.2); 
+        }
         .payment-card-label .radio-icon { color: #d1d3e2; transition: color 0.2s; }
-        .payment-card-label.selected .radio-icon { color: #4e73df; }
+        .payment-card-label.selected .radio-icon { color: #f48fb1; }
+
+        /* Sobrescribiendo el azul primary de Bootstrap */
+        .text-primary { color: #e91e63 !important; }
+        .btn-primary { 
+            background-color: #f48fb1 !important; 
+            border-color: #f48fb1 !important; 
+            color: #ffffff !important; 
+        }
+        .btn-primary:hover, .btn-primary:focus, .btn-primary:active:not(:disabled) { 
+            background-color: #f06292 !important; 
+            border-color: #f06292 !important; 
+            box-shadow: 0 0 0 0.2rem rgba(244, 143, 177, 0.5) !important; 
+        }
+        /* Color del botón cuando está bloqueado esperando el monto */
+        .btn-primary:disabled {
+            background-color: #f8bbd0 !important;
+            border-color: #f8bbd0 !important;
+        }
+
+        /* Transformando el color "info" a tonos cereza/fresa para mantener la paleta */
+        .badge-info { background-color: #fce4ec !important; color: #c2185b !important; border: 1px solid #f8bbd0; }
+        .alert-info { background-color: #fdf2f6 !important; border-color: #f8bbd0 !important; color: #c2185b !important; }
+        .text-info { color: #c2185b !important; }
     </style>
 </head>
 <body>
@@ -174,7 +214,7 @@
         const radios = document.querySelectorAll('.payment-radio');
         const form = document.getElementById('dynamic_payment_form');
         const hiddenMethod = document.getElementById('hidden_payment_method');
-        const hiddenDestination = document.getElementById('hidden_destination_id'); // NUEVO
+        const hiddenDestination = document.getElementById('hidden_destination_id');
         const finalUsdAmount = document.getElementById('final_usd_amount');
         const submitBtn = document.getElementById('submit_btn');
 
@@ -203,10 +243,10 @@
                 if(form) form.style.display = 'block';
                 
                 const destType = this.getAttribute('data-type');
-                const destId = this.getAttribute('data-id'); // NUEVO
+                const destId = this.getAttribute('data-id');
                 
                 if(hiddenMethod) hiddenMethod.value = destType;
-                if(hiddenDestination) hiddenDestination.value = destId; // NUEVO
+                if(hiddenDestination) hiddenDestination.value = destId;
 
                 if(inputBs) inputBs.value = '';
                 if(inputUsd) inputUsd.value = '';
