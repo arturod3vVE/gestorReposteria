@@ -1,6 +1,6 @@
-import requests
-import threading
 import json
+import threading
+import requests
 from django.conf import settings
 
 def send_telegram_receipt_async(payment_record, total_amount, is_bulk=False):
@@ -29,7 +29,9 @@ def send_telegram_receipt_async(payment_record, total_amount, is_bulk=False):
         else:
             caption += f"📦 *Orden:* #{payment_record.order.id}\n"
             
-        caption += f"\n👉 [Entrar al Panel de Verificación](https://arturod3v.pythonanywhere.com/orders/)"
+        # ⚠️ CAMBIA ESTO por tu dominio real de Render
+        render_url = "https://crumbcore-app.onrender.com" 
+        caption += f"\n👉 [Entrar al Panel de Verificación]({render_url}/orders/)"
 
         botones = {
             "inline_keyboard": [
@@ -39,24 +41,36 @@ def send_telegram_receipt_async(payment_record, total_amount, is_bulk=False):
                 ]
             ]
         }
-        # Telegram exige que el markup vaya como un string JSON
         reply_markup = json.dumps(botones)
 
         try:
             if payment_record.receipt:
                 url = f"https://api.telegram.org/bot{TOKEN}/sendPhoto"
-                files = {'photo': payment_record.receipt.open('rb')}
-                # Agregamos el reply_markup
-                data = {'chat_id': CHAT_ID, 'caption': caption, 'parse_mode': 'Markdown', 'reply_markup': reply_markup}
-                requests.post(url, data=data, files=files, timeout=5)
+                # OPTIMIZACIÓN S3: Mandamos la URL en lugar del archivo físico
+                data = {
+                    'chat_id': CHAT_ID, 
+                    'photo': payment_record.receipt.url, 
+                    'caption': caption, 
+                    'parse_mode': 'Markdown', 
+                    'reply_markup': reply_markup
+                }
+                response = requests.post(url, data=data, timeout=10)
             else:
                 url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-                data = {'chat_id': CHAT_ID, 'text': caption, 'parse_mode': 'Markdown', 'reply_markup': reply_markup}
-                requests.post(url, data=data, timeout=5)
+                data = {
+                    'chat_id': CHAT_ID, 
+                    'text': caption, 
+                    'parse_mode': 'Markdown', 
+                    'reply_markup': reply_markup
+                }
+                response = requests.post(url, data=data, timeout=10)
+                
+            # Validamos si Telegram rechazó la petición
+            if response.status_code != 200:
+                print(f"TELEGRAM ERROR LOG: {response.status_code} - {response.text}")
+                
         except Exception as e:
-            print(f"Error enviando Telegram: {e}")
+            print(f"Error fatal enviando Telegram: {e}")
 
-    threading.Thread(target=send_message).start()
-
-    # Lanzamos el hilo
+    # Lanzamos un ÚNICO hilo
     threading.Thread(target=send_message).start()
