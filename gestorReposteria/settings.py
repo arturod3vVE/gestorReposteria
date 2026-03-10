@@ -153,6 +153,7 @@ if 'AWS_ACCESS_KEY_ID' in os.environ:
             "signature_version": "s3v4",
             "default_acl": "public-read",
             "querystring_auth": False, # Clave para que la URL sea pública y limpia
+            "custom_domain": f"wjeuakokxjttpimhbuxj.supabase.co/storage/v1/object/public/{os.environ.get('AWS_STORAGE_BUCKET_NAME')}",
         },
     }
 LOGIN_URL = 'login'
