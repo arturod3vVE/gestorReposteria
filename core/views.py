@@ -7,6 +7,7 @@ from django.db.models import ProtectedError, Sum, Count
 from django.utils import timezone
 import requests
 import json
+from datetime import timedelta
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages

@@ -1,0 +1,1028 @@
+[
+{
+    "model": "auth.user",
+    "fields": {
+        "password": "pbkdf2_sha256$1000000$66nMbAdt6IdbODzdJgaW3s$ocuP5lF84TX/87Ap2YTUEtYzHh+9nNdfBJfsbp82H20=",
+        "last_login": "2026-03-09T19:21:49.256Z",
+        "is_superuser": true,
+        "username": "tuti",
+        "first_name": "",
+        "last_name": "",
+        "email": "arturod3v@gmail.com",
+        "is_staff": true,
+        "is_active": true,
+        "date_joined": "2026-03-08T02:49:03.377Z",
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "18r1fimdef78bvfw8qte399d0i59253l",
+    "fields": {
+        "session_data": ".eJxVjMsOwiAQRf-FtSEdoDC4dO83kKEzSNWUpI-V8d-1SRe6veec-1KJtrWmbZE5jazOCtTpd8s0PGTaAd9pujU9tGmdx6x3RR900dfG8rwc7t9BpaV-a9-VAtBBJ33kkA1Sj0AoRQafo8cISM5IYHDsrTdirYuRbEBENtao9wfQfDb4:1vza7q:9SJk5EmI8YF0n7mPFtmudDqmzJPxJUYAiqdbaXzS25A",
+        "expire_date": "2026-03-23T12:54:22.569Z"
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "6vj4io6v1khp5id0uefvxzwbrz1tgern",
+    "fields": {
+        "session_data": ".eJxVjMsOwiAQRf-FtSEdoDC4dO83kKEzSNWUpI-V8d-1SRe6veec-1KJtrWmbZE5jazOCtTpd8s0PGTaAd9pujU9tGmdx6x3RR900dfG8rwc7t9BpaV-a9-VAtBBJ33kkA1Sj0AoRQafo8cISM5IYHDsrTdirYuRbEBENtao9wfQfDb4:1vz5Rj:LD3PDkkOvxWNtl4mzeNqvW5Gulpx2o5njmuusss8y7g",
+        "expire_date": "2026-03-22T04:08:51.360Z"
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "kti7wt1034tvauou1z467luutalhfgy7",
+    "fields": {
+        "session_data": ".eJxVjMsOwiAQRf-FtSEdoDC4dO83kKEzSNWUpI-V8d-1SRe6veec-1KJtrWmbZE5jazOCtTpd8s0PGTaAd9pujU9tGmdx6x3RR900dfG8rwc7t9BpaV-a9-VAtBBJ33kkA1Sj0AoRQafo8cISM5IYHDsrTdirYuRbEBENtao9wfQfDb4:1vz4Ci:6Wo1DlbOPEsCri6eoecH3SI61vH7-YUqMAyG9UYewXM",
+        "expire_date": "2026-03-22T02:49:16.839Z"
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "nf1mouoz70d3yveilnj4iqton6sgcizo",
+    "fields": {
+        "session_data": ".eJxVjMsOwiAQRf-FtSEdoDC4dO83kKEzSNWUpI-V8d-1SRe6veec-1KJtrWmbZE5jazOCtTpd8s0PGTaAd9pujU9tGmdx6x3RR900dfG8rwc7t9BpaV-a9-VAtBBJ33kkA1Sj0AoRQafo8cISM5IYHDsrTdirYuRbEBENtao9wfQfDb4:1vz7Mg:XRFsDziKvCuCMAzaX-GsReJyMDQ8m4B1wa1DELS34Z8",
+        "expire_date": "2026-03-22T06:11:46.908Z"
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "tnki1vy2u3ga93t46h5izt52mpslumsb",
+    "fields": {
+        "session_data": ".eJxVjMsOwiAQRf-FtSEdoDC4dO83kKEzSNWUpI-V8d-1SRe6veec-1KJtrWmbZE5jazOCtTpd8s0PGTaAd9pujU9tGmdx6x3RR900dfG8rwc7t9BpaV-a9-VAtBBJ33kkA1Sj0AoRQafo8cISM5IYHDsrTdirYuRbEBENtao9wfQfDb4:1vz4Tq:mTcLmkt5n2u-h70c3TS38p7COjNkDgYc5vxm9t4jM-I",
+        "expire_date": "2026-03-22T03:06:58.628Z"
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "ugws9wnjlov7st8lj1w1glj2d08w3iog",
+    "fields": {
+        "session_data": ".eJxVjMsOwiAQRf-FtSEdoDC4dO83kKEzSNWUpI-V8d-1SRe6veec-1KJtrWmbZE5jazOCtTpd8s0PGTaAd9pujU9tGmdx6x3RR900dfG8rwc7t9BpaV-a9-VAtBBJ33kkA1Sj0AoRQafo8cISM5IYHDsrTdirYuRbEBENtao9wfQfDb4:1vzgAn:zANU16EwY3btPkSJ1JVx-DQbWK_9EY0mqo72Zw9w6NU",
+        "expire_date": "2026-03-23T19:21:49.278Z"
+    }
+},
+{
+    "model": "core.exchangerate",
+    "pk": 1,
+    "fields": {
+        "rate": "500.00",
+        "created_at": "2026-03-08T03:14:04.457Z"
+    }
+},
+{
+    "model": "core.category",
+    "pk": 1,
+    "fields": {
+        "name": "Galletas",
+        "description": ""
+    }
+},
+{
+    "model": "core.ingredient",
+    "pk": 1,
+    "fields": {
+        "name": "Harina todo uso",
+        "measurement_unit": "kg",
+        "cost_per_unit": "1.30",
+        "track_stock": false,
+        "stock_quantity": "0.00"
+    }
+},
+{
+    "model": "core.ingredient",
+    "pk": 2,
+    "fields": {
+        "name": "Azucar Blanca",
+        "measurement_unit": "kg",
+        "cost_per_unit": "1.40",
+        "track_stock": false,
+        "stock_quantity": "0.00"
+    }
+},
+{
+    "model": "core.ingredient",
+    "pk": 3,
+    "fields": {
+        "name": "Huevos",
+        "measurement_unit": "unit",
+        "cost_per_unit": "0.26",
+        "track_stock": false,
+        "stock_quantity": "0.00"
+    }
+},
+{
+    "model": "core.ingredient",
+    "pk": 4,
+    "fields": {
+        "name": "Maizena",
+        "measurement_unit": "kg",
+        "cost_per_unit": "4.00",
+        "track_stock": false,
+        "stock_quantity": "0.00"
+    }
+},
+{
+    "model": "core.ingredient",
+    "pk": 5,
+    "fields": {
+        "name": "Bicarbonato",
+        "measurement_unit": "kg",
+        "cost_per_unit": "8.00",
+        "track_stock": false,
+        "stock_quantity": "0.00"
+    }
+},
+{
+    "model": "core.ingredient",
+    "pk": 6,
+    "fields": {
+        "name": "Sal",
+        "measurement_unit": "kg",
+        "cost_per_unit": "1.20",
+        "track_stock": false,
+        "stock_quantity": "0.00"
+    }
+},
+{
+    "model": "core.ingredient",
+    "pk": 7,
+    "fields": {
+        "name": "Chocolate Barra",
+        "measurement_unit": "kg",
+        "cost_per_unit": "10.00",
+        "track_stock": false,
+        "stock_quantity": "0.00"
+    }
+},
+{
+    "model": "core.ingredient",
+    "pk": 8,
+    "fields": {
+        "name": "Margarina",
+        "measurement_unit": "kg",
+        "cost_per_unit": "6.00",
+        "track_stock": false,
+        "stock_quantity": "0.00"
+    }
+},
+{
+    "model": "core.ingredient",
+    "pk": 9,
+    "fields": {
+        "name": "Azucar Morena",
+        "measurement_unit": "kg",
+        "cost_per_unit": "5.00",
+        "track_stock": false,
+        "stock_quantity": "0.00"
+    }
+},
+{
+    "model": "core.ingredient",
+    "pk": 10,
+    "fields": {
+        "name": "Ovomaltina",
+        "measurement_unit": "kg",
+        "cost_per_unit": "10.00",
+        "track_stock": false,
+        "stock_quantity": "0.00"
+    }
+},
+{
+    "model": "core.product",
+    "pk": 1,
+    "fields": {
+        "category": 1,
+        "name": "Galleta Signature",
+        "description": "Galleta con chocolate",
+        "sale_price": "1.00",
+        "is_available": true,
+        "created_at": "2026-03-08T03:03:03.153Z",
+        "recipe_yield": 22,
+        "track_stock": false,
+        "stock_quantity": 0
+    }
+},
+{
+    "model": "core.product",
+    "pk": 2,
+    "fields": {
+        "category": 1,
+        "name": "Galleta Ovomaltina",
+        "description": "",
+        "sale_price": "2.00",
+        "is_available": true,
+        "created_at": "2026-03-08T03:11:42.896Z",
+        "recipe_yield": 22,
+        "track_stock": false,
+        "stock_quantity": 0
+    }
+},
+{
+    "model": "core.recipeitem",
+    "pk": 77,
+    "fields": {
+        "product": 2,
+        "ingredient": 8,
+        "quantity_required": "0.36"
+    }
+},
+{
+    "model": "core.recipeitem",
+    "pk": 78,
+    "fields": {
+        "product": 2,
+        "ingredient": 9,
+        "quantity_required": "0.34"
+    }
+},
+{
+    "model": "core.recipeitem",
+    "pk": 79,
+    "fields": {
+        "product": 2,
+        "ingredient": 2,
+        "quantity_required": "0.20"
+    }
+},
+{
+    "model": "core.recipeitem",
+    "pk": 80,
+    "fields": {
+        "product": 2,
+        "ingredient": 3,
+        "quantity_required": "4.00"
+    }
+},
+{
+    "model": "core.recipeitem",
+    "pk": 81,
+    "fields": {
+        "product": 2,
+        "ingredient": 1,
+        "quantity_required": "0.68"
+    }
+},
+{
+    "model": "core.recipeitem",
+    "pk": 82,
+    "fields": {
+        "product": 2,
+        "ingredient": 4,
+        "quantity_required": "0.08"
+    }
+},
+{
+    "model": "core.recipeitem",
+    "pk": 83,
+    "fields": {
+        "product": 2,
+        "ingredient": 5,
+        "quantity_required": "0.01"
+    }
+},
+{
+    "model": "core.recipeitem",
+    "pk": 84,
+    "fields": {
+        "product": 2,
+        "ingredient": 6,
+        "quantity_required": "0.01"
+    }
+},
+{
+    "model": "core.recipeitem",
+    "pk": 85,
+    "fields": {
+        "product": 2,
+        "ingredient": 7,
+        "quantity_required": "0.10"
+    }
+},
+{
+    "model": "core.recipeitem",
+    "pk": 86,
+    "fields": {
+        "product": 2,
+        "ingredient": 10,
+        "quantity_required": "0.40"
+    }
+},
+{
+    "model": "core.recipeitem",
+    "pk": 87,
+    "fields": {
+        "product": 1,
+        "ingredient": 8,
+        "quantity_required": "0.36"
+    }
+},
+{
+    "model": "core.recipeitem",
+    "pk": 88,
+    "fields": {
+        "product": 1,
+        "ingredient": 9,
+        "quantity_required": "0.34"
+    }
+},
+{
+    "model": "core.recipeitem",
+    "pk": 89,
+    "fields": {
+        "product": 1,
+        "ingredient": 2,
+        "quantity_required": "0.20"
+    }
+},
+{
+    "model": "core.recipeitem",
+    "pk": 90,
+    "fields": {
+        "product": 1,
+        "ingredient": 3,
+        "quantity_required": "4.00"
+    }
+},
+{
+    "model": "core.recipeitem",
+    "pk": 91,
+    "fields": {
+        "product": 1,
+        "ingredient": 1,
+        "quantity_required": "0.68"
+    }
+},
+{
+    "model": "core.recipeitem",
+    "pk": 92,
+    "fields": {
+        "product": 1,
+        "ingredient": 4,
+        "quantity_required": "0.08"
+    }
+},
+{
+    "model": "core.recipeitem",
+    "pk": 93,
+    "fields": {
+        "product": 1,
+        "ingredient": 5,
+        "quantity_required": "0.01"
+    }
+},
+{
+    "model": "core.recipeitem",
+    "pk": 94,
+    "fields": {
+        "product": 1,
+        "ingredient": 6,
+        "quantity_required": "0.01"
+    }
+},
+{
+    "model": "core.recipeitem",
+    "pk": 95,
+    "fields": {
+        "product": 1,
+        "ingredient": 7,
+        "quantity_required": "0.16"
+    }
+},
+{
+    "model": "core.customer",
+    "pk": 1,
+    "fields": {
+        "full_name": "Tony",
+        "phone": "+584120817196",
+        "email": null,
+        "delivery_address": ""
+    }
+},
+{
+    "model": "core.customer",
+    "pk": 2,
+    "fields": {
+        "full_name": "Carlos Franco",
+        "phone": "+584149008364",
+        "email": "",
+        "delivery_address": ""
+    }
+},
+{
+    "model": "core.customer",
+    "pk": 3,
+    "fields": {
+        "full_name": "Brunilda Yeguez",
+        "phone": "+584149118079",
+        "email": "",
+        "delivery_address": ""
+    }
+},
+{
+    "model": "core.customer",
+    "pk": 4,
+    "fields": {
+        "full_name": "Ivanna Franquis",
+        "phone": "+584127183769",
+        "email": "",
+        "delivery_address": ""
+    }
+},
+{
+    "model": "core.customer",
+    "pk": 5,
+    "fields": {
+        "full_name": "Martha Rodriguez",
+        "phone": "+584148832104",
+        "email": "",
+        "delivery_address": ""
+    }
+},
+{
+    "model": "core.customer",
+    "pk": 6,
+    "fields": {
+        "full_name": "Paola R.",
+        "phone": "+584261440661",
+        "email": "",
+        "delivery_address": ""
+    }
+},
+{
+    "model": "core.customer",
+    "pk": 7,
+    "fields": {
+        "full_name": "Daniel Serrano",
+        "phone": "+584125822608",
+        "email": "",
+        "delivery_address": ""
+    }
+},
+{
+    "model": "core.customer",
+    "pk": 8,
+    "fields": {
+        "full_name": "Yehismar Carvajal",
+        "phone": "+584122145757",
+        "email": "",
+        "delivery_address": ""
+    }
+},
+{
+    "model": "core.customer",
+    "pk": 9,
+    "fields": {
+        "full_name": "Paty",
+        "phone": "+584149031077",
+        "email": "",
+        "delivery_address": ""
+    }
+},
+{
+    "model": "core.customer",
+    "pk": 10,
+    "fields": {
+        "full_name": "Hanny",
+        "phone": "+584129957374",
+        "email": "",
+        "delivery_address": ""
+    }
+},
+{
+    "model": "core.customer",
+    "pk": 11,
+    "fields": {
+        "full_name": "Raul Rosal",
+        "phone": "+584129587449",
+        "email": "",
+        "delivery_address": ""
+    }
+},
+{
+    "model": "core.customer",
+    "pk": 12,
+    "fields": {
+        "full_name": "Abrahan Marcano",
+        "phone": "+584127703919",
+        "email": "",
+        "delivery_address": ""
+    }
+},
+{
+    "model": "core.order",
+    "pk": 1,
+    "fields": {
+        "customer": 1,
+        "created_at": "2026-03-08T03:13:46.873Z",
+        "expected_delivery_date": "2026-03-06T23:13:00Z",
+        "status": "DELIVERED",
+        "payment_status": "PENDING",
+        "total_amount": "5.00",
+        "special_notes": ""
+    }
+},
+{
+    "model": "core.order",
+    "pk": 2,
+    "fields": {
+        "customer": 9,
+        "created_at": "2026-03-08T03:38:42.568Z",
+        "expected_delivery_date": "2026-03-07T23:38:00Z",
+        "status": "DELIVERED",
+        "payment_status": "PENDING",
+        "total_amount": "4.00",
+        "special_notes": ""
+    }
+},
+{
+    "model": "core.order",
+    "pk": 3,
+    "fields": {
+        "customer": 10,
+        "created_at": "2026-03-08T03:39:45.939Z",
+        "expected_delivery_date": "2026-03-07T23:39:00Z",
+        "status": "DELIVERED",
+        "payment_status": "PAID",
+        "total_amount": "5.00",
+        "special_notes": ""
+    }
+},
+{
+    "model": "core.order",
+    "pk": 4,
+    "fields": {
+        "customer": 11,
+        "created_at": "2026-03-08T03:43:36.151Z",
+        "expected_delivery_date": "2026-03-07T23:43:00Z",
+        "status": "DELIVERED",
+        "payment_status": "PAID",
+        "total_amount": "3.00",
+        "special_notes": ""
+    }
+},
+{
+    "model": "core.order",
+    "pk": 5,
+    "fields": {
+        "customer": 12,
+        "created_at": "2026-03-08T03:47:56.998Z",
+        "expected_delivery_date": "2026-03-06T23:46:00Z",
+        "status": "DELIVERED",
+        "payment_status": "PAID",
+        "total_amount": "3.00",
+        "special_notes": ""
+    }
+},
+{
+    "model": "core.order",
+    "pk": 6,
+    "fields": {
+        "customer": 2,
+        "created_at": "2026-03-08T03:48:48.377Z",
+        "expected_delivery_date": "2026-03-06T23:48:00Z",
+        "status": "DELIVERED",
+        "payment_status": "PAID",
+        "total_amount": "4.00",
+        "special_notes": ""
+    }
+},
+{
+    "model": "core.order",
+    "pk": 7,
+    "fields": {
+        "customer": 3,
+        "created_at": "2026-03-08T03:49:38.200Z",
+        "expected_delivery_date": "2026-03-06T23:49:00Z",
+        "status": "DELIVERED",
+        "payment_status": "PENDING",
+        "total_amount": "10.00",
+        "special_notes": ""
+    }
+},
+{
+    "model": "core.order",
+    "pk": 8,
+    "fields": {
+        "customer": 4,
+        "created_at": "2026-03-08T03:50:04.841Z",
+        "expected_delivery_date": "2026-03-07T23:50:00Z",
+        "status": "DELIVERED",
+        "payment_status": "PAID",
+        "total_amount": "3.00",
+        "special_notes": ""
+    }
+},
+{
+    "model": "core.order",
+    "pk": 9,
+    "fields": {
+        "customer": 5,
+        "created_at": "2026-03-08T03:50:27.236Z",
+        "expected_delivery_date": "2026-03-06T23:50:00Z",
+        "status": "DELIVERED",
+        "payment_status": "PENDING",
+        "total_amount": "1.00",
+        "special_notes": ""
+    }
+},
+{
+    "model": "core.order",
+    "pk": 10,
+    "fields": {
+        "customer": 6,
+        "created_at": "2026-03-08T03:50:55.453Z",
+        "expected_delivery_date": "2026-03-06T23:50:00Z",
+        "status": "DELIVERED",
+        "payment_status": "PENDING",
+        "total_amount": "9.00",
+        "special_notes": ""
+    }
+},
+{
+    "model": "core.order",
+    "pk": 11,
+    "fields": {
+        "customer": 7,
+        "created_at": "2026-03-08T03:51:11.152Z",
+        "expected_delivery_date": "2026-03-06T23:51:00Z",
+        "status": "DELIVERED",
+        "payment_status": "PAID",
+        "total_amount": "2.00",
+        "special_notes": ""
+    }
+},
+{
+    "model": "core.order",
+    "pk": 12,
+    "fields": {
+        "customer": 8,
+        "created_at": "2026-03-08T03:51:24.604Z",
+        "expected_delivery_date": "2026-03-07T23:51:00Z",
+        "status": "DELIVERED",
+        "payment_status": "PAID",
+        "total_amount": "1.00",
+        "special_notes": ""
+    }
+},
+{
+    "model": "core.order",
+    "pk": 13,
+    "fields": {
+        "customer": 8,
+        "created_at": "2026-03-08T16:49:04.290Z",
+        "expected_delivery_date": "2026-02-27T12:48:00Z",
+        "status": "DELIVERED",
+        "payment_status": "PAID",
+        "total_amount": "3.00",
+        "special_notes": ""
+    }
+},
+{
+    "model": "core.orderitem",
+    "pk": 1,
+    "fields": {
+        "order": 1,
+        "product": 2,
+        "quantity": 1,
+        "unit_price": "2.00"
+    }
+},
+{
+    "model": "core.orderitem",
+    "pk": 2,
+    "fields": {
+        "order": 1,
+        "product": 1,
+        "quantity": 3,
+        "unit_price": "1.00"
+    }
+},
+{
+    "model": "core.orderitem",
+    "pk": 3,
+    "fields": {
+        "order": 2,
+        "product": 1,
+        "quantity": 4,
+        "unit_price": "1.00"
+    }
+},
+{
+    "model": "core.orderitem",
+    "pk": 4,
+    "fields": {
+        "order": 3,
+        "product": 2,
+        "quantity": 2,
+        "unit_price": "2.00"
+    }
+},
+{
+    "model": "core.orderitem",
+    "pk": 5,
+    "fields": {
+        "order": 3,
+        "product": 1,
+        "quantity": 1,
+        "unit_price": "1.00"
+    }
+},
+{
+    "model": "core.orderitem",
+    "pk": 6,
+    "fields": {
+        "order": 4,
+        "product": 1,
+        "quantity": 1,
+        "unit_price": "1.00"
+    }
+},
+{
+    "model": "core.orderitem",
+    "pk": 7,
+    "fields": {
+        "order": 4,
+        "product": 2,
+        "quantity": 1,
+        "unit_price": "2.00"
+    }
+},
+{
+    "model": "core.orderitem",
+    "pk": 8,
+    "fields": {
+        "order": 5,
+        "product": 1,
+        "quantity": 3,
+        "unit_price": "1.00"
+    }
+},
+{
+    "model": "core.orderitem",
+    "pk": 9,
+    "fields": {
+        "order": 6,
+        "product": 2,
+        "quantity": 2,
+        "unit_price": "2.00"
+    }
+},
+{
+    "model": "core.orderitem",
+    "pk": 10,
+    "fields": {
+        "order": 7,
+        "product": 2,
+        "quantity": 1,
+        "unit_price": "2.00"
+    }
+},
+{
+    "model": "core.orderitem",
+    "pk": 11,
+    "fields": {
+        "order": 7,
+        "product": 1,
+        "quantity": 8,
+        "unit_price": "1.00"
+    }
+},
+{
+    "model": "core.orderitem",
+    "pk": 12,
+    "fields": {
+        "order": 8,
+        "product": 1,
+        "quantity": 3,
+        "unit_price": "1.00"
+    }
+},
+{
+    "model": "core.orderitem",
+    "pk": 13,
+    "fields": {
+        "order": 9,
+        "product": 1,
+        "quantity": 1,
+        "unit_price": "1.00"
+    }
+},
+{
+    "model": "core.orderitem",
+    "pk": 14,
+    "fields": {
+        "order": 10,
+        "product": 1,
+        "quantity": 5,
+        "unit_price": "1.00"
+    }
+},
+{
+    "model": "core.orderitem",
+    "pk": 15,
+    "fields": {
+        "order": 10,
+        "product": 2,
+        "quantity": 2,
+        "unit_price": "2.00"
+    }
+},
+{
+    "model": "core.orderitem",
+    "pk": 16,
+    "fields": {
+        "order": 11,
+        "product": 1,
+        "quantity": 2,
+        "unit_price": "1.00"
+    }
+},
+{
+    "model": "core.orderitem",
+    "pk": 17,
+    "fields": {
+        "order": 12,
+        "product": 1,
+        "quantity": 1,
+        "unit_price": "1.00"
+    }
+},
+{
+    "model": "core.orderitem",
+    "pk": 18,
+    "fields": {
+        "order": 13,
+        "product": 2,
+        "quantity": 1,
+        "unit_price": "2.00"
+    }
+},
+{
+    "model": "core.orderitem",
+    "pk": 19,
+    "fields": {
+        "order": 13,
+        "product": 1,
+        "quantity": 1,
+        "unit_price": "1.00"
+    }
+},
+{
+    "model": "core.paymentdestination",
+    "pk": 1,
+    "fields": {
+        "name": "Pago Movil Bancamiga",
+        "destination_type": "MOBILE",
+        "bank": "Bancamiga",
+        "phone": "04241837364",
+        "document_type": "V",
+        "document_number": "28331911",
+        "account_number": "",
+        "email": "",
+        "owner_name": "",
+        "is_active": true,
+        "created_at": "2026-03-08T03:14:56.177Z"
+    }
+},
+{
+    "model": "core.payment",
+    "pk": 1,
+    "fields": {
+        "order": 3,
+        "payment_method": "MOBILE",
+        "amount": "5.00",
+        "reference_number": "7475",
+        "receipt": "receipts/WhatsApp_Image_2026-03-07_at_4.13.22_PM.jpeg",
+        "is_verified": true,
+        "reported_at": "2026-03-08T03:40:48.758Z",
+        "transaction_group": null,
+        "destination": null
+    }
+},
+{
+    "model": "core.payment",
+    "pk": 2,
+    "fields": {
+        "order": 4,
+        "payment_method": "MOBILE",
+        "amount": "3.00",
+        "reference_number": "2140",
+        "receipt": "receipts/photo_2026-03-07_23-44-46.jpg",
+        "is_verified": true,
+        "reported_at": "2026-03-08T03:45:06.151Z",
+        "transaction_group": null,
+        "destination": null
+    }
+},
+{
+    "model": "core.payment",
+    "pk": 3,
+    "fields": {
+        "order": 5,
+        "payment_method": "MOBILE",
+        "amount": "3.00",
+        "reference_number": "7160",
+        "receipt": "receipts/WhatsApp_Image_2026-03-06_at_5.18.18_PM.jpeg",
+        "is_verified": true,
+        "reported_at": "2026-03-08T03:54:10.063Z",
+        "transaction_group": null,
+        "destination": null
+    }
+},
+{
+    "model": "core.payment",
+    "pk": 4,
+    "fields": {
+        "order": 12,
+        "payment_method": "MOBILE",
+        "amount": "1.00",
+        "reference_number": "005313375871 (Liquidación Múltiple)",
+        "receipt": "receipts/Screenshot_2026-03-08-14-46-14-362_com_compressed_compressed_9F7UZWP.jpg",
+        "is_verified": true,
+        "reported_at": "2026-03-08T18:46:29.941Z",
+        "transaction_group": "9be0ef8a-a1b6-4188-8913-34dbc6d779eb",
+        "destination": null
+    }
+},
+{
+    "model": "core.payment",
+    "pk": 5,
+    "fields": {
+        "order": 13,
+        "payment_method": "MOBILE",
+        "amount": "3.00",
+        "reference_number": "005313375871 (Liquidación Múltiple)",
+        "receipt": "receipts/Screenshot_2026-03-08-14-46-14-362_com_compressed_compressed_compressed.jpg",
+        "is_verified": true,
+        "reported_at": "2026-03-08T18:46:30.014Z",
+        "transaction_group": "9be0ef8a-a1b6-4188-8913-34dbc6d779eb",
+        "destination": null
+    }
+},
+{
+    "model": "core.payment",
+    "pk": 6,
+    "fields": {
+        "order": 6,
+        "payment_method": "MOBILE",
+        "amount": "4.00",
+        "reference_number": "2566333 (Liquidación Múltiple)",
+        "receipt": "receipts/imagen_2026-03-08_162414321_compressed_compressed.jpg",
+        "is_verified": true,
+        "reported_at": "2026-03-08T20:29:33.344Z",
+        "transaction_group": "660d5c81-03c7-4e31-a507-d22b7fff93df",
+        "destination": null
+    }
+},
+{
+    "model": "core.payment",
+    "pk": 8,
+    "fields": {
+        "order": 8,
+        "payment_method": "MOBILE",
+        "amount": "3.00",
+        "reference_number": "060681946179",
+        "receipt": "receipts/IMG_2249_compressed_compressed.jpg",
+        "is_verified": true,
+        "reported_at": "2026-03-09T13:51:48.242Z",
+        "transaction_group": null,
+        "destination": null
+    }
+},
+{
+    "model": "core.payment",
+    "pk": 10,
+    "fields": {
+        "order": 11,
+        "payment_method": "MOBILE",
+        "amount": "2.00",
+        "reference_number": "406835540809",
+        "receipt": "receipts/IMG_2933_compressed_compressed.jpg",
+        "is_verified": true,
+        "reported_at": "2026-03-09T14:05:21.892Z",
+        "transaction_group": null,
+        "destination": 1
+    }
+},
+{
+    "model": "admin.logentry",
+    "pk": 1,
+    "fields": {
+        "action_time": "2026-03-08T03:21:05.388Z",
+        "user": [
+            "tuti"
+        ],
+        "content_type": [
+            "core",
+            "customer"
+        ],
+        "object_id": "1",
+        "object_repr": "Tony",
+        "action_flag": 2,
+        "change_message": "[{\"changed\": {\"fields\": [\"Full name\", \"Phone\"]}}]"
+    }
+}
+]
