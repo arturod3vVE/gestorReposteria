@@ -122,29 +122,39 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
+# --- ARCHIVOS ESTÁTICOS Y MULTIMEDIA (Django 5.0+) ---
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# --- ARCHIVOS MULTIMEDIA (Supabase S3 Storage) ---
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Si detectamos credenciales S3 en el entorno, guardamos las imágenes en Supabase
+# El nuevo estándar STORAGES que exige Django 6.0
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
+# Si estamos en Render (detecta las credenciales), inyectamos Supabase
 if 'AWS_ACCESS_KEY_ID' in os.environ:
-    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-    AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
-    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
-    AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
-    AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME')
-    AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL')
-    
-    # Configuraciones extra para evitar problemas de firmas
-    AWS_S3_SIGNATURE_VERSION = 's3v4'
-    AWS_S3_ADDRESSING_STYLE = 'virtual'
-    AWS_S3_FILE_OVERWRITE = False
-    AWS_DEFAULT_ACL = 'public-read'
+    STORAGES["default"] = {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "access_key": os.environ.get('AWS_ACCESS_KEY_ID'),
+            "secret_key": os.environ.get('AWS_SECRET_ACCESS_KEY'),
+            "bucket_name": os.environ.get('AWS_STORAGE_BUCKET_NAME'),
+            "region_name": os.environ.get('AWS_S3_REGION_NAME'),
+            "endpoint_url": os.environ.get('AWS_S3_ENDPOINT_URL'),
+            "signature_version": "s3v4",
+            "default_acl": "public-read",
+            "querystring_auth": False, # Clave para que la URL sea pública y limpia
+        },
+    }
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'order_list'
 LOGOUT_REDIRECT_URL = 'login'

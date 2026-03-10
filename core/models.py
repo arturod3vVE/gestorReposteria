@@ -295,7 +295,9 @@ class Payment(models.Model):
     def save(self, *args, **kwargs):
         self.clean()
 
-        if self.receipt:
+        # ¡TRUCO PRO! Solo comprimimos si hay recibo Y si NO ha sido comprimido antes.
+        # Esto evita descargas innecesarias desde Supabase cada vez que editas el pago.
+        if self.receipt and '_compressed' not in self.receipt.name:
             img = Image.open(self.receipt)
 
             if img.mode in ("RGBA", "P"):
