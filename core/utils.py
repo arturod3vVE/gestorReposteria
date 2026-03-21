@@ -85,3 +85,37 @@ def send_telegram_receipt_async(payment_record, total_amount, is_bulk=False):
 
     # Lanzamos un ÚNICO hilo
     threading.Thread(target=send_message).start()
+
+def enviar_whatsapp_background(telefono_cliente, mensaje):
+    def send_task():
+        # 1. Leemos la URL de nuestras configuraciones
+        # Asegúrate de tener WHATSAPP_API_URL en tu settings.py o usar os.getenv
+        base_url = os.getenv('WHATSAPP_API_URL')
+        if not base_url:
+            print("Error: No se ha configurado WHATSAPP_API_URL")
+            return
+
+        endpoint = f"{base_url}/send"
+        
+        # 2. Limpiamos el teléfono
+        telefono_limpio = ''.join(filter(str.isdigit, str(telefono_cliente)))
+        
+        payload = {
+            "phone": telefono_limpio,
+            "message": mensaje
+        }
+        
+        try:
+            response = requests.post(endpoint, json=payload, timeout=30)
+            
+            if response.status_code == 200:
+                print(f"✅ WhatsApp enviado con éxito a {telefono_limpio}")
+            else:
+                print(f"❌ Error del microservicio ({response.status_code}): {response.text}")
+                
+        except requests.exceptions.Timeout:
+            print("⚠️ El microservicio tardó demasiado en responder (posiblemente estaba hibernando).")
+        except Exception as e:
+            print(f"❌ Error de conexión con el microservicio: {e}")
+
+    threading.Thread(target=send_task).start()

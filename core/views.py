@@ -16,9 +16,10 @@ from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from .services import process_payment_action, process_telegram_command
-from .utils import send_telegram_receipt_async
+from .utils import enviar_whatsapp_background, send_telegram_receipt_async
 from django.views.decorators.http import require_POST
 from django.conf import settings
+from django.urls import reverse
 
 @user_passes_test(lambda u: u.is_staff)
 def dashboard(request):
@@ -331,7 +332,6 @@ def create_order(request):
         quantities = request.POST.getlist('quantity[]') or request.POST.getlist('quantity')
 
         # --- 1. FASE DE VALIDACIÓN ESTRICTA (PRE-FLIGHT CHECK) ---
-        # Agrupamos las cantidades solicitadas (por si agregan el mismo producto en dos filas distintas)
         requested_qtys = {}
         for i in range(len(product_ids)):
             if product_ids[i] and quantities[i]:
@@ -342,17 +342,12 @@ def create_order(request):
         has_errors = False
         for pid, total_qty in requested_qtys.items():
             prod_obj = get_object_or_404(Product, id=pid)
-            # Verificamos si lleva stock y si se está pidiendo de más
             if prod_obj.track_stock and total_qty > prod_obj.stock_quantity:
                 messages.error(request, f'¡Stock insuficiente! Solicitaste {total_qty} unidades de "{prod_obj.name}", pero solo quedan {prod_obj.stock_quantity} disponibles.')
                 has_errors = True
 
         if has_errors:
-            # Abortamos la creación de la orden y recargamos el formulario
             return redirect('create_order')
-        # ---------------------------------------------------------
-
-        # 2. Si pasó la validación, procedemos a crear la Orden
         customer_id = request.POST.get('customer')
         expected_delivery_date = request.POST.get('expected_delivery_date')
         special_notes = request.POST.get('special_notes', '')
@@ -369,7 +364,7 @@ def create_order(request):
 
         total_amount = Decimal('0.00')
 
-        # 3. Guardamos cada item (El modelo OrderItem restará el stock automáticamente)
+        # 3. Guardamos cada item
         for i in range(len(product_ids)):
             if product_ids[i] and quantities[i]:
                 prod_obj = get_object_or_404(Product, id=product_ids[i])
@@ -379,7 +374,7 @@ def create_order(request):
                     order=order,
                     product=prod_obj,
                     quantity=qty,
-                    unit_price=prod_obj.sale_price # Congelamos el precio
+                    unit_price=prod_obj.sale_price 
                 )
                 item.save()
 
@@ -387,6 +382,28 @@ def create_order(request):
 
         order.total_amount = total_amount
         order.save()
+
+
+        if order.customer and order.customer.phone:
+            ruta_relativa = reverse('public_payment_link', args=[order.pk])
+            link_pago = request.build_absolute_uri(ruta_relativa)
+            detalle_productos = ""
+            for item in order.items.all():
+                subtotal = item.quantity * item.unit_price
+                detalle_productos += f"▫️ {item.quantity}x {item.product.name} = ${subtotal}\n"
+
+            mensaje = (
+                f"¡Hola {order.customer.full_name}! 👋\n\n"
+                f"Tu orden #{order.id} ha sido registrada con éxito.\n\n"
+                f"📦 *Detalle de tu pedido:*\n"
+                f"{detalle_productos}\n"
+                f"💰 *Total a pagar:* ${order.total_amount}\n\n"
+                f"🧾 Puedes ver tu estado de cuenta y reportar tu pago de forma segura en este enlace:\n"
+                f"{link_pago}\n\n"
+                f"¡Gracias por preferirnos! 🍪"
+            )
+            
+            enviar_whatsapp_background(order.customer.phone, mensaje)
 
         messages.success(request, f'Orden #{order.id} creada exitosamente.')
         return redirect('order_list')
