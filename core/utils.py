@@ -1,4 +1,5 @@
 import json
+import os
 import threading
 import requests
 from django.conf import settings
@@ -88,8 +89,6 @@ def send_telegram_receipt_async(payment_record, total_amount, is_bulk=False):
 
 def enviar_whatsapp_background(telefono_cliente, mensaje):
     def send_task():
-        # 1. Leemos la URL de nuestras configuraciones
-        # Asegúrate de tener WHATSAPP_API_URL en tu settings.py o usar os.getenv
         base_url = os.getenv('WHATSAPP_API_URL')
         if not base_url:
             print("Error: No se ha configurado WHATSAPP_API_URL")
