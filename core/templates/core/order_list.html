@@ -43,6 +43,16 @@
                 <label class="mr-2 small font-weight-bold">Hasta:</label>
                 <input type="date" name="end_date" class="form-control form-control-sm" value="{{ current_end }}">
             </div>
+            
+            <div class="form-group mr-3">
+                <div class="custom-control custom-checkbox">
+                    <input type="checkbox" class="custom-control-input" id="pendingCheck" name="pending_payments" value="yes" {% if current_pending == 'yes' %}checked{% endif %}>
+                    <label class="custom-control-label small font-weight-bold text-warning" style="padding-top: 2px;" for="pendingCheck">
+                        <i class="fas fa-exclamation-circle"></i> Solo Pagos Pendientes
+                    </label>
+                </div>
+            </div>
+
             <button type="submit" class="btn btn-primary btn-sm shadow-sm">
                 <i class="fas fa-filter fa-sm"></i> Filtrar
             </button>
@@ -99,18 +109,28 @@
                                 {{ order.get_status_display }}
                             </span>
                         </td>
-                        <td class="align-middle text-center">
+                        
+                        <td class="align-middle text-center position-relative">
                             <span class="badge badge-{% if order.payment_status == 'PAID' %}success{% elif order.payment_status == 'PENDING' %}danger{% else %}info{% endif %}">
                                 {{ order.get_payment_status_display }}
                             </span>
+                            
+                            {% if order.tiene_pagos_pendientes %}
+                                <div class="mt-1">
+                                    <span class="badge badge-warning text-dark shadow-sm" style="font-size: 0.7rem;">
+                                        <i class="fas fa-exclamation-circle"></i> Pago(s) en cola
+                                    </span>
+                                </div>
+                            {% endif %}
                         </td>
+                        
                         <td class="align-middle text-center">
                             <a href="{% url 'order_detail' order.id %}" class="btn btn-info btn-circle btn-sm shadow-sm" title="Ver Detalles">
                                 <i class="fas fa-eye"></i>
                             </a>
 
-                            <a href="{% url 'verify_order_payments' order.pk %}" class="btn btn-success btn-circle btn-sm shadow-sm ml-1" title="Verificar Pagos">
-                                <i class="fas fa-file-invoice-dollar"></i>
+                            <a href="{% url 'verify_order_payments' order.pk %}" class="btn btn-{% if order.tiene_pagos_pendientes %}warning{% else %}success{% endif %} btn-circle btn-sm shadow-sm ml-1" title="Verificar Pagos">
+                                <i class="fas fa-file-invoice-dollar {% if order.tiene_pagos_pendientes %}text-dark{% endif %}"></i>
                             </a>
 
                             {% if order.status != 'DELIVERED' and order.status != 'CANCELLED' %}
@@ -144,7 +164,7 @@
             <ul class="pagination justify-content-center">
                 {% if orders.has_previous %}
                     <li class="page-item">
-                        <a class="page-link shadow-sm" href="?page={{ orders.previous_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_start %}&start_date={{ current_start }}{% endif %}{% if current_end %}&end_date={{ current_end }}{% endif %}">
+                        <a class="page-link shadow-sm" href="?page={{ orders.previous_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_start %}&start_date={{ current_start }}{% endif %}{% if current_end %}&end_date={{ current_end }}{% endif %}{% if current_pending %}&pending_payments={{ current_pending }}{% endif %}">
                             <i class="fas fa-chevron-left"></i> Anterior
                         </a>
                     </li>
@@ -157,14 +177,14 @@
                         <li class="page-item active shadow-sm"><span class="page-link">{{ i }}</span></li>
                     {% else %}
                         <li class="page-item">
-                            <a class="page-link shadow-sm" href="?page={{ i }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_start %}&start_date={{ current_start }}{% endif %}{% if current_end %}&end_date={{ current_end }}{% endif %}">{{ i }}</a>
+                            <a class="page-link shadow-sm" href="?page={{ i }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_start %}&start_date={{ current_start }}{% endif %}{% if current_end %}&end_date={{ current_end }}{% endif %}{% if current_pending %}&pending_payments={{ current_pending }}{% endif %}">{{ i }}</a>
                         </li>
                     {% endif %}
                 {% endfor %}
 
                 {% if orders.has_next %}
                     <li class="page-item">
-                        <a class="page-link shadow-sm" href="?page={{ orders.next_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_start %}&start_date={{ current_start }}{% endif %}{% if current_end %}&end_date={{ current_end }}{% endif %}">
+                        <a class="page-link shadow-sm" href="?page={{ orders.next_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_start %}&start_date={{ current_start }}{% endif %}{% if current_end %}&end_date={{ current_end }}{% endif %}{% if current_pending %}&pending_payments={{ current_pending }}{% endif %}">
                             Siguiente <i class="fas fa-chevron-right"></i>
                         </a>
                     </li>

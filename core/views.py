@@ -3,14 +3,14 @@ import uuid
 from django.shortcuts import render, redirect
 from decimal import Decimal
 from .models import Ingredient, PaymentDestination, Product, Category, RecipeItem, Order, OrderItem, Customer, Payment, ExchangeRate
-from django.db.models import ProtectedError, Sum, Count
+from django.db.models import ProtectedError, Sum, Count, Exists, OuterRef
 from django.utils import timezone
 import requests
 import json
 from datetime import timedelta
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.contrib import messages
+from django.contrib import messages 
 from django.contrib.auth.decorators import user_passes_test
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
@@ -267,11 +267,22 @@ def order_list(request):
     status_filter = request.GET.get('status')
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
+    # NUEVO: Capturamos el filtro de pagos pendientes
+    pending_payments_filter = request.GET.get('pending_payments') 
 
-    # Query inicial optimizada
+    # Creamos la subconsulta para buscar pagos no verificados
+    pagos_pendientes_subquery = Payment.objects.filter(
+        order=OuterRef('pk'),
+        is_verified=False
+    )
+
+    # Query inicial optimizada y anotada
     orders_list = Order.objects.select_related('customer').prefetch_related(
         'items__product', 
         'payments'
+    ).annotate(
+        # Anotamos cada orden con un True/False si tiene pagos pendientes
+        tiene_pagos_pendientes=Exists(pagos_pendientes_subquery)
     ).order_by('-created_at')
 
     # 2. Aplicación de lógica de filtrado
@@ -283,6 +294,10 @@ def order_list(request):
     
     if end_date:
         orders_list = orders_list.filter(created_at__date__lte=end_date)
+        
+    # NUEVO: Si el checkbox fue marcado, filtramos usando la anotación
+    if pending_payments_filter == 'yes':
+        orders_list = orders_list.filter(tiene_pagos_pendientes=True)
 
     # 3. Configuración del Paginador (10 órdenes por página)
     paginator = Paginator(orders_list, 10)
@@ -297,11 +312,11 @@ def order_list(request):
 
     context = {
         'orders': orders,
-        'status_choices': Order.ORDER_STATUS, # Para llenar el select de filtros
-        # Devolvemos los filtros para que el HTML mantenga los valores en los inputs
+        'status_choices': Order.ORDER_STATUS, 
         'current_status': status_filter,
         'current_start': start_date,
         'current_end': end_date,
+        'current_pending': pending_payments_filter, # Pasamos el estado del filtro al HTML
     }
     
     return render(request, 'core/order_list.html', context)
@@ -679,12 +694,11 @@ def customer_bulk_payment(request, customer_id):
             if remaining_to_distribute <= 0:
                 break
             
-            # Calculamos la deuda real de esta orden (quitando lo que ya se reportó antes para ella)
             order_unverified = order.amount_pending
             order_actual_debt = order.balance_due_calculated - order_unverified
             
             if order_actual_debt <= 0:
-                continue # Esta orden específica ya tiene su pago en revisión, pasamos a la siguiente
+                continue
                 
             amount_to_apply = min(remaining_to_distribute, order_actual_debt)
 
@@ -692,7 +706,7 @@ def customer_bulk_payment(request, customer_id):
                 order=order,
                 payment_method=payment_method,
                 amount=amount_to_apply, 
-                reference_number=f"{reference_number} (Liquidación Múltiple)",
+                reference_number=f"{reference_number}",
                 is_verified=False,
                 transaction_group=group_token,
             )
