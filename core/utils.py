@@ -89,7 +89,7 @@ def send_telegram_receipt_async(payment_record, total_amount, is_bulk=False):
 
 def enviar_whatsapp_background(telefono_cliente, mensaje):
     def send_task():
-        base_url = os.getenv('WHATSAPP_API_URL')
+        base_url = settings.WHATSAPP_API_URL
         if not base_url:
             print("Error: No se ha configurado WHATSAPP_API_URL")
             return

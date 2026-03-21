@@ -5,6 +5,7 @@ from decimal import Decimal
 from .models import Ingredient, PaymentDestination, Product, Category, RecipeItem, Order, OrderItem, Customer, Payment, ExchangeRate
 from django.db.models import ProtectedError, Sum, Count, Exists, OuterRef
 from django.utils import timezone
+from datetime import datetime
 import requests
 import json
 from datetime import timedelta
@@ -263,32 +264,38 @@ def create_category(request):
     return render(request, 'core/category_form.html')
 
 @user_passes_test(lambda u: u.is_staff)
+@user_passes_test(lambda u: u.is_staff)
 def order_list(request):
     # 1. Captura de filtros desde el navegador
     status_filter = request.GET.get('status')
+    payment_status_filter = request.GET.get('payment_status') # <-- NUEVO
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
-    # NUEVO: Capturamos el filtro de pagos pendientes
     pending_payments_filter = request.GET.get('pending_payments') 
 
-    # Creamos la subconsulta para buscar pagos no verificados
+    # Subconsulta para pagos por verificar (el checkbox de "hay recibos pendientes")
     pagos_pendientes_subquery = Payment.objects.filter(
         order=OuterRef('pk'),
         is_verified=False
     )
 
-    # Query inicial optimizada y anotada
+    # Query inicial optimizada
     orders_list = Order.objects.select_related('customer').prefetch_related(
         'items__product', 
         'payments'
     ).annotate(
-        # Anotamos cada orden con un True/False si tiene pagos pendientes
         tiene_pagos_pendientes=Exists(pagos_pendientes_subquery)
     ).order_by('-created_at')
 
     # 2. Aplicación de lógica de filtrado
+    
+    # Filtro de Estatus de Entrega
     if status_filter:
         orders_list = orders_list.filter(status=status_filter)
+    
+    # Filtro de Estatus de Pago (NUEVO)
+    if payment_status_filter:
+        orders_list = orders_list.filter(payment_status=payment_status_filter)
     
     if start_date:
         orders_list = orders_list.filter(created_at__date__gte=start_date)
@@ -296,11 +303,10 @@ def order_list(request):
     if end_date:
         orders_list = orders_list.filter(created_at__date__lte=end_date)
         
-    # NUEVO: Si el checkbox fue marcado, filtramos usando la anotación
     if pending_payments_filter == 'yes':
         orders_list = orders_list.filter(tiene_pagos_pendientes=True)
 
-    # 3. Configuración del Paginador (10 órdenes por página)
+    # 3. Configuración del Paginador
     paginator = Paginator(orders_list, 10)
     page = request.GET.get('page')
 
@@ -314,10 +320,12 @@ def order_list(request):
     context = {
         'orders': orders,
         'status_choices': Order.ORDER_STATUS, 
+        'payment_status_choices': Order.PAYMENT_STATUS, # <-- NUEVO
         'current_status': status_filter,
+        'current_payment_status': payment_status_filter, # <-- NUEVO
         'current_start': start_date,
         'current_end': end_date,
-        'current_pending': pending_payments_filter, # Pasamos el estado del filtro al HTML
+        'current_pending': pending_payments_filter,
     }
     
     return render(request, 'core/order_list.html', context)
@@ -348,13 +356,23 @@ def create_order(request):
 
         if has_errors:
             return redirect('create_order')
+
+        # --- 2. CAPTURA DE DATOS Y CORRECCIÓN DE FECHA ---
         customer_id = request.POST.get('customer')
-        expected_delivery_date = request.POST.get('expected_delivery_date')
+        expected_delivery_date_str = request.POST.get('expected_delivery_date')
         special_notes = request.POST.get('special_notes', '')
         status = request.POST.get('status', 'PENDING')
 
+        # Convertimos el string de la fecha a un objeto aware (con zona horaria)
+        # para evitar el RuntimeWarning en Render
+        expected_delivery_date = None
+        if expected_delivery_date_str:
+            naive_datetime = datetime.strptime(expected_delivery_date_str, '%Y-%m-%dT%H:%M')
+            expected_delivery_date = timezone.make_aware(naive_datetime)
+
         customer_obj = get_object_or_404(Customer, id=customer_id) if customer_id else None
 
+        # Creamos la orden
         order = Order.objects.create(
             customer=customer_obj,
             expected_delivery_date=expected_delivery_date,
@@ -364,7 +382,7 @@ def create_order(request):
 
         total_amount = Decimal('0.00')
 
-        # 3. Guardamos cada item
+        # --- 3. GUARDAMOS CADA ITEM ---
         for i in range(len(product_ids)):
             if product_ids[i] and quantities[i]:
                 prod_obj = get_object_or_404(Product, id=product_ids[i])
@@ -380,18 +398,23 @@ def create_order(request):
 
                 total_amount += (item.unit_price * Decimal(qty))
 
+        # Actualizamos el total final de la orden
         order.total_amount = total_amount
         order.save()
 
-
+        # --- 4. INTEGRACIÓN CON WHATSAPP ---
         if order.customer and order.customer.phone:
+            # Construimos el link de pago público
             ruta_relativa = reverse('public_payment_link', args=[order.pk])
             link_pago = request.build_absolute_uri(ruta_relativa)
+            
+            # Construimos el detalle de productos usando 'items' (related_name)
             detalle_productos = ""
             for item in order.items.all():
                 subtotal = item.quantity * item.unit_price
                 detalle_productos += f"▫️ {item.quantity}x {item.product.name} = ${subtotal}\n"
 
+            # Armamos el mensaje final
             mensaje = (
                 f"¡Hola {order.customer.full_name}! 👋\n\n"
                 f"Tu orden #{order.id} ha sido registrada con éxito.\n\n"
@@ -403,6 +426,7 @@ def create_order(request):
                 f"¡Gracias por preferirnos! 🍪"
             )
             
+            # Enviamos al microservicio en segundo plano
             enviar_whatsapp_background(order.customer.phone, mensaje)
 
         messages.success(request, f'Orden #{order.id} creada exitosamente.')

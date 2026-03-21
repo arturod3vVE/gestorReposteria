@@ -27,7 +27,7 @@
     <div class="card-body">
         <form method="GET" class="form-inline">
             <div class="form-group mr-3">
-                <label class="mr-2 small font-weight-bold">Estatus:</label>
+                <label class="mr-2 small font-weight-bold">Entrega:</label>
                 <select name="status" class="form-control form-control-sm">
                     <option value="">Todos...</option>
                     {% for val, name in status_choices %}
@@ -35,6 +35,17 @@
                     {% endfor %}
                 </select>
             </div>
+
+            <div class="form-group mr-3">
+                <label class="mr-2 small font-weight-bold text-primary">Estatus Pago:</label>
+                <select name="payment_status" class="form-control form-control-sm border-left-primary">
+                    <option value="">Todos...</option>
+                    {% for val, name in payment_status_choices %}
+                        <option value="{{ val }}" {% if current_payment_status == val %}selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
             <div class="form-group mr-3">
                 <label class="mr-2 small font-weight-bold">Desde:</label>
                 <input type="date" name="start_date" class="form-control form-control-sm" value="{{ current_start }}">
@@ -48,7 +59,7 @@
                 <div class="custom-control custom-checkbox">
                     <input type="checkbox" class="custom-control-input" id="pendingCheck" name="pending_payments" value="yes" {% if current_pending == 'yes' %}checked{% endif %}>
                     <label class="custom-control-label small font-weight-bold text-warning" style="padding-top: 2px;" for="pendingCheck">
-                        <i class="fas fa-exclamation-circle"></i> Solo Pagos Pendientes
+                        <i class="fas fa-exclamation-circle"></i> Recibos por Verificar
                     </label>
                 </div>
             </div>
@@ -164,7 +175,7 @@
             <ul class="pagination justify-content-center">
                 {% if orders.has_previous %}
                     <li class="page-item">
-                        <a class="page-link shadow-sm" href="?page={{ orders.previous_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_start %}&start_date={{ current_start }}{% endif %}{% if current_end %}&end_date={{ current_end }}{% endif %}{% if current_pending %}&pending_payments={{ current_pending }}{% endif %}">
+                        <a class="page-link shadow-sm" href="?page={{ orders.previous_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_payment_status %}&payment_status={{ current_payment_status }}{% endif %}{% if current_start %}&start_date={{ current_start }}{% endif %}{% if current_end %}&end_date={{ current_end }}{% endif %}{% if current_pending %}&pending_payments={{ current_pending }}{% endif %}">
                             <i class="fas fa-chevron-left"></i> Anterior
                         </a>
                     </li>
@@ -177,14 +188,14 @@
                         <li class="page-item active shadow-sm"><span class="page-link">{{ i }}</span></li>
                     {% else %}
                         <li class="page-item">
-                            <a class="page-link shadow-sm" href="?page={{ i }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_start %}&start_date={{ current_start }}{% endif %}{% if current_end %}&end_date={{ current_end }}{% endif %}{% if current_pending %}&pending_payments={{ current_pending }}{% endif %}">{{ i }}</a>
+                            <a class="page-link shadow-sm" href="?page={{ i }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_payment_status %}&payment_status={{ current_payment_status }}{% endif %}{% if current_start %}&start_date={{ current_start }}{% endif %}{% if current_end %}&end_date={{ current_end }}{% endif %}{% if current_pending %}&pending_payments={{ current_pending }}{% endif %}">{{ i }}</a>
                         </li>
                     {% endif %}
                 {% endfor %}
 
                 {% if orders.has_next %}
                     <li class="page-item">
-                        <a class="page-link shadow-sm" href="?page={{ orders.next_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_start %}&start_date={{ current_start }}{% endif %}{% if current_end %}&end_date={{ current_end }}{% endif %}{% if current_pending %}&pending_payments={{ current_pending }}{% endif %}">
+                        <a class="page-link shadow-sm" href="?page={{ orders.next_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_payment_status %}&payment_status={{ current_payment_status }}{% endif %}{% if current_start %}&start_date={{ current_start }}{% endif %}{% if current_end %}&end_date={{ current_end }}{% endif %}{% if current_pending %}&pending_payments={{ current_pending }}{% endif %}">
                             Siguiente <i class="fas fa-chevron-right"></i>
                         </a>
                     </li>
