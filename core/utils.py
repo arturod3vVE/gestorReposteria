@@ -23,11 +23,20 @@ def send_telegram_receipt_async(payment_record, total_amount, is_bulk=False):
         caption += f"💳 *Método:* {metodo}\n"
         caption += f"🧾 *Ref:* {ref}\n\n"
         
-        if is_bulk:
-            caption += f"📦 *Tipo:* Pago\n"
-            caption += f"🔗 *Token de Grupo:* `{str(payment_record.transaction_group)[:8]}`\n"
+        # --- CÓDIGO MODIFICADO AQUÍ ---
+        if is_bulk and payment_record.transaction_group:
+            Payment = payment_record.__class__
+            
+            pagos_asociados = Payment.objects.filter(transaction_group=payment_record.transaction_group)
+            
+            lista_ordenes = [str(p.order.id) for p in pagos_asociados]
+            ordenes_str = ", #".join(lista_ordenes)
+            
+            caption += f"📦 *Tipo:* Liquidación Múltiple\n"
+            caption += f"🔗 *Órdenes pagadas:* #{ordenes_str}\n"
         else:
             caption += f"📦 *Orden:* #{payment_record.order.id}\n"
+        # ------------------------------
             
         # ⚠️ CAMBIA ESTO por tu dominio real de Render
         render_url = "https://crumbcore-app.onrender.com" 

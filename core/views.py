@@ -17,6 +17,7 @@ from django.shortcuts import get_object_or_404
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from .services import process_payment_action, process_telegram_command
 from .utils import send_telegram_receipt_async
+from django.views.decorators.http import require_POST
 from django.conf import settings
 
 @user_passes_test(lambda u: u.is_staff)
@@ -707,6 +708,13 @@ def customer_bulk_payment(request, customer_id):
                 payment.save()
                 
             remaining_to_distribute -= amount_to_apply
+            if first_payment_record:
+
+                # Calculamos cuánto se aplicó realmente
+                total_applied = max_reportable - remaining_to_distribute
+                
+                # Pasamos is_bulk=True para que tu función de Telegram sepa cómo procesarlo
+                send_telegram_receipt_async(first_payment_record, total_applied, is_bulk=True)
 
         messages.success(request, '¡Liquidación de cuenta reportada exitosamente! Nuestro equipo la verificará a la brevedad.')
         return redirect('customer_bulk_payment', customer_id=customer.id)
@@ -721,6 +729,22 @@ def customer_bulk_payment(request, customer_id):
         'destinations': destinations
     }
     return render(request, 'core/customer_bulk_payment.html', context)
+
+@require_POST
+@user_passes_test(lambda u: u.is_staff)
+def resend_telegram_receipt(request, payment_id):
+    payment = get_object_or_404(Payment, id=payment_id)
+    
+    is_bulk = bool(payment.transaction_group)
+    
+    try:
+        send_telegram_receipt_async(payment, payment.amount, is_bulk=is_bulk)
+        messages.success(request, 'El comprobante se ha puesto en cola para reenviarse a Telegram.')
+    except Exception as e:
+        messages.error(request, f'Hubo un error al intentar reenviar: {str(e)}')
+        
+    # Redirigimos al usuario a la página en la que estaba (referer)
+    return redirect(request.META.get('HTTP_REFERER', '/'))
 
 @user_passes_test(lambda u: u.is_staff)
 def quick_cash_payment(request, pk):

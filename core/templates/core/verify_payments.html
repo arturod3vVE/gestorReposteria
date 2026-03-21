@@ -102,7 +102,16 @@
                                 </td>
                                 <td class="align-middle text-center">
                                     {% if payment.is_verified %}
-                                        <span class="badge badge-success px-3 py-2"><i class="fas fa-check-double"></i> Verificado</span>
+                                        <div class="d-flex justify-content-center align-items-center">
+                                            <span class="badge badge-success px-3 py-2 mr-2"><i class="fas fa-check-double"></i> Verificado</span>
+                                            
+                                            <form method="POST" action="{% url 'resend_telegram_receipt' payment.id %}">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-warning btn-sm shadow-sm" title="Reenviar a Telegram">
+                                                    <i class="fas fa-paper-plane"></i>
+                                                </button>
+                                            </form>
+                                        </div>
                                     {% else %}
                                         <div class="d-flex justify-content-center">
                                             
@@ -116,13 +125,20 @@
                                                 </button>
                                             </form>
                                             
-                                            <form method="POST" action="{% url 'verify_order_payments' order.pk %}">
+                                            <form method="POST" action="{% url 'verify_order_payments' order.pk %}" class="mr-1">
                                                 {% csrf_token %}
                                                 <input type="hidden" name="payment_id" value="{{ payment.id }}">
                                                 <input type="hidden" name="action" value="reject">
                                                 <button type="submit" class="btn btn-danger btn-sm shadow-sm" title="Rechazar y Eliminar Pago" 
                                                     onclick="return confirm('{% if payment.transaction_group %}¡ATENCIÓN! Al rechazar esta Liquidación Múltiple, se ELIMINARÁN TODOS los pagos asociados en las demás órdenes. ¿Estás seguro?{% else %}¿Estás seguro de rechazar y eliminar este pago individual?{% endif %}');">
                                                     <i class="fas fa-times"></i> Rechazar
+                                                </button>
+                                            </form>
+
+                                            <form method="POST" action="{% url 'resend_telegram_receipt' payment.id %}">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-warning btn-sm shadow-sm" title="Reenviar a Telegram">
+                                                    <i class="fas fa-paper-plane"></i>
                                                 </button>
                                             </form>
                                             
