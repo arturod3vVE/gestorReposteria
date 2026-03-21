@@ -31,9 +31,11 @@ def send_telegram_receipt_async(payment_record, total_amount, is_bulk=False):
             
             lista_ordenes = [str(p.order.id) for p in pagos_asociados]
             ordenes_str = ", #".join(lista_ordenes)
-            
-            caption += f"📦 *Tipo:* Liquidación Múltiple\n"
-            caption += f"🔗 *Órdenes pagadas:* #{ordenes_str}\n"
+            if(len(lista_ordenes) > 1):
+                caption += f"📦 *Tipo:* Pago de Ordenes\n"
+                caption += f"🔗 *Órdenes pagadas:* #{ordenes_str}\n"
+            else:
+                caption += f"📦 *Orden:* #{ordenes_str}\n"
         else:
             caption += f"📦 *Orden:* #{payment_record.order.id}\n"
         # ------------------------------

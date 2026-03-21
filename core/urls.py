@@ -31,6 +31,7 @@ urlpatterns = [
     path('p/<int:pk>/', views.public_payment_link, name='public_payment_link'),
     path('p/c/<int:customer_id>/', views.customer_bulk_payment, name='customer_bulk_payment'),
     path('payments/<int:payment_id>/resend-telegram/', views.resend_telegram_receipt, name='resend_telegram_receipt'),
+    path('payments/pending/', views.pending_payments_list, name='pending_payments_list'),
 
     path('customers/create/', views.create_customer, name='create_customer'),
     path('customers/', views.customer_list, name='customer_list'),

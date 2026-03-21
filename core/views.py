@@ -968,3 +968,55 @@ def telegram_webhook(request):
             print(f"Webhook error: {e}")
             
         return JsonResponse({"status": "ok"})
+
+def pending_payments_list(request):
+    # Obtenemos todos los pagos sin verificar
+    pagos_pendientes = Payment.objects.filter(is_verified=False).select_related('order', 'order__customer')
+    
+    pagos_agrupados = {}
+    pagos_individuales = []
+
+    for pago in pagos_pendientes:
+        cliente_nombre = pago.order.customer.full_name if pago.order.customer else "Venta de Mostrador"
+        
+        if pago.transaction_group:
+            tg = str(pago.transaction_group)
+            if tg not in pagos_agrupados:
+                pagos_agrupados[tg] = {
+                    'es_bulk': True,
+                    'fecha': pago.reported_at,
+                    'cliente': cliente_nombre,
+                    'referencia': pago.reference_number,
+                    'monto': 0,
+                    'ordenes': [],
+                    'orden_principal_id': pago.order.id,
+                    'pago_id': pago.id,
+                }
+            pagos_agrupados[tg]['monto'] += pago.amount
+            pagos_agrupados[tg]['ordenes'].append(str(pago.order.id))
+        else:
+            # Pago individual
+            pagos_individuales.append({
+                'es_bulk': False,
+                'fecha': pago.reported_at,
+                'cliente': cliente_nombre,
+                'referencia': pago.reference_number,
+                'monto': pago.amount,
+                'ordenes_str': str(pago.order.id),
+                'orden_principal_id': pago.order.id,
+                'pago_id': pago.id,
+            })
+
+    # Unimos y formateamos
+    lista_final_pagos = pagos_individuales
+    for tg, data in pagos_agrupados.items():
+        data['ordenes_str'] = ", #".join(data['ordenes'])
+        lista_final_pagos.append(data)
+
+    # Ordenamos del más antiguo al más reciente (para priorizar los que llevan más tiempo esperando)
+    lista_final_pagos.sort(key=lambda x: x['fecha'])
+
+    context = {
+        'pagos_lista': lista_final_pagos,
+    }
+    return render(request, 'core/pending_payments.html', context)
