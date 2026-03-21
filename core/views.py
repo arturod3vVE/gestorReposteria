@@ -1074,3 +1074,24 @@ def pending_payments_list(request):
         'pagos_lista': lista_final_pagos,
     }
     return render(request, 'core/pending_payments.html', context)
+
+def send_payment_link_whatsapp(request, pk):
+    """Vista para enviar el link de pago vía WhatsApp usando la utilidad en background"""
+    if request.method == 'POST':
+        order = get_object_or_404(Order, pk=pk)
+        
+        if not order.customer or not order.customer.phone:
+            return JsonResponse({'success': False, 'error': 'El cliente no tiene teléfono registrado.'})
+
+        # 1. Construimos el link y el mensaje
+        payment_link = request.build_absolute_uri(reverse('public_payment_link', args=[order.pk]))
+        name = order.customer.full_name or "Cliente"
+        message = f"¡Hola {name}! 👋\n\nAquí tienes el enlace seguro para reportar el pago de tu orden #{order.id}:\n{payment_link}\n\nGracias por preferir a CrumbCore. 🍪"
+
+        # 2. Le pasamos el trabajo pesado a tu función de utilidades
+        enviar_whatsapp_background(order.customer.phone, message)
+        
+        # 3. Respondemos al instante al navegador (el mensaje ya va en camino)
+        return JsonResponse({'success': True, 'message': 'Mensaje enviado a la cola en segundo plano.'})
+            
+    return JsonResponse({'success': False, 'error': 'Método inválido.'})
