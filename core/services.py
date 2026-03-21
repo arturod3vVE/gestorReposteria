@@ -7,6 +7,11 @@ import requests
 from django.conf import settings
 
 def process_payment_action(payment, action):
+    """
+    Core business logic for approving or rejecting a payment.
+    Handles bulk transactions (domino effect) and individual payments.
+    Returns: (bool success, str result_message)
+    """
     if action == 'approve':
         if payment.transaction_group:
             related_payments = Payment.objects.filter(transaction_group=payment.transaction_group, is_verified=False)
@@ -24,7 +29,8 @@ def process_payment_action(payment, action):
                         related_order.payment_status = 'PARTIAL'
                     related_order.save()
                     
-                    send_whatsapp_payment_notification(related_order, related_payment.amount)
+                    # Notificamos el pago aprobado
+                    send_whatsapp_payment_notification(related_order, related_payment.amount, status='approved')
                     
                     approved_count += 1
             return True, f'¡Efecto dominó! Se verificaron {approved_count} pagos asociados a esta liquidación masiva.'
@@ -43,8 +49,7 @@ def process_payment_action(payment, action):
                     order.payment_status = 'PARTIAL'
                 order.save()
                 
-                # NUEVO: Disparamos la notificación para el pago individual
-                send_whatsapp_payment_notification(order, payment.amount)
+                send_whatsapp_payment_notification(order, payment.amount, status='approved')
                 
                 return True, f'Pago de ${payment.amount} verificado correctamente.'
                 
@@ -52,33 +57,48 @@ def process_payment_action(payment, action):
         if payment.transaction_group:
             related_payments = Payment.objects.filter(transaction_group=payment.transaction_group)
             deleted_count = related_payments.count()
+            
+            # Notificamos a cada cliente antes de borrar los registros masivos
+            for related_payment in related_payments:
+                send_whatsapp_payment_notification(related_payment.order, related_payment.amount, status='rejected')
+                
             related_payments.delete()
-            return True, f'El reporte de liquidación masiva ha sido rechazado. Se eliminaron {deleted_count} registros asociados.'
+            return True, f'El reporte de pago masivo ha sido rechazado.'
         else:
             rejected_amount = payment.amount
+            order = payment.order 
+            
             payment.delete()
+            
+            send_whatsapp_payment_notification(order, rejected_amount, status='rejected')
+            
             return True, f'El reporte de pago por ${rejected_amount} ha sido rechazado y eliminado.'
             
     return False, 'Acción no reconocida.'
 
-def send_whatsapp_payment_notification(order, amount):
+def send_whatsapp_payment_notification(order, amount, status='approved'):
     """
-    Envía una notificación de pago aprobado al cliente si tiene número de teléfono.
-    Falla de forma silenciosa para no interrumpir el flujo de la aplicación.
+    Envía una notificación al cliente sobre el estado de su pago (aprobado o rechazado).
     """
     if not order.customer or not order.customer.phone:
-        return
+        return  # Si no hay cliente o teléfono, salimos en silencio
 
     phone = order.customer.phone
     name = order.customer.full_name or "Cliente"
     
-    message = f"¡Hola {name}! 🍪\n\n"
-    message += f"Te confirmamos que hemos verificado exitosamente tu pago de *${amount}* para la orden *#{order.id}*.\n\n"
-    
-    if order.payment_status == 'PAID':
-        message += "✅ ¡Tu orden se encuentra totalmente pagada! Muchas gracias."
-    else:
-        message += f"⚠️ Saldo pendiente actual: *${order.balance_due_calculated}*."
+    if status == 'approved':
+        message = f"¡Hola {name}! 🍪\n\n"
+        message += f"Tu pago de *${amount}* para la orden *#{order.id}* fue aprobado.\n\n"
+        
+        if order.payment_status == 'PAID':
+            message += "✅ Tu pedido ya está 100% pagado. ¡Gracias por preferirnos!"
+        else:
+            message += f"📝 Saldo restante por pagar: *${order.balance_due_calculated}*."
+            
+    elif status == 'rejected':
+        message = f"¡Hola {name}! 🍪\n\n"
+        message += f"❌ Tuvimos un inconveniente al verificar tu pago de *${amount}* para la orden *#{order.id}* y ha sido rechazado.\n\n"
+        message += "Por favor, revisa el comprobante y vuelve a registrarlo. Si tienes alguna duda, escríbenos por esta vía."
 
     try:
         api_url = f"{settings.WHATSAPP_API_URL}/send"
@@ -86,6 +106,7 @@ def send_whatsapp_payment_notification(order, amount):
             "phone": phone,
             "message": message
         }
+        
         requests.post(api_url, json=payload, timeout=3)
         
     except requests.exceptions.RequestException as e:
