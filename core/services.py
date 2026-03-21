@@ -1,14 +1,12 @@
+from asyncio.log import logger
 from .models import Payment, Order
 from decimal import Decimal
 from django.db.models import Sum
 from django.utils import timezone
+import requests
+from django.conf import settings
 
 def process_payment_action(payment, action):
-    """
-    Core business logic for approving or rejecting a payment.
-    Handles bulk transactions (domino effect) and individual payments.
-    Returns: (bool success, str result_message)
-    """
     if action == 'approve':
         if payment.transaction_group:
             related_payments = Payment.objects.filter(transaction_group=payment.transaction_group, is_verified=False)
@@ -26,6 +24,8 @@ def process_payment_action(payment, action):
                         related_order.payment_status = 'PARTIAL'
                     related_order.save()
                     
+                    send_whatsapp_payment_notification(related_order, related_payment.amount)
+                    
                     approved_count += 1
             return True, f'¡Efecto dominó! Se verificaron {approved_count} pagos asociados a esta liquidación masiva.'
             
@@ -42,6 +42,10 @@ def process_payment_action(payment, action):
                 elif order.amount_paid > 0:
                     order.payment_status = 'PARTIAL'
                 order.save()
+                
+                # NUEVO: Disparamos la notificación para el pago individual
+                send_whatsapp_payment_notification(order, payment.amount)
+                
                 return True, f'Pago de ${payment.amount} verificado correctamente.'
                 
     elif action == 'reject':
@@ -57,10 +61,37 @@ def process_payment_action(payment, action):
             
     return False, 'Acción no reconocida.'
 
+def send_whatsapp_payment_notification(order, amount):
+    """
+    Envía una notificación de pago aprobado al cliente si tiene número de teléfono.
+    Falla de forma silenciosa para no interrumpir el flujo de la aplicación.
+    """
+    if not order.customer or not order.customer.phone:
+        return
+
+    phone = order.customer.phone
+    name = order.customer.full_name or "Cliente"
+    
+    message = f"¡Hola {name}! 🍪\n\n"
+    message += f"Te confirmamos que hemos verificado exitosamente tu pago de *${amount}* para la orden *#{order.id}*.\n\n"
+    
+    if order.payment_status == 'PAID':
+        message += "✅ ¡Tu orden se encuentra totalmente pagada! Muchas gracias."
+    else:
+        message += f"⚠️ Saldo pendiente actual: *${order.balance_due_calculated}*."
+
+    try:
+        api_url = f"{settings.WHATSAPP_API_URL}/send"
+        payload = {
+            "phone": phone,
+            "message": message
+        }
+        requests.post(api_url, json=payload, timeout=3)
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Fallo al notificar por WhatsApp a {phone}: {e}")
+
 def process_telegram_command(command_text):
-    """
-    Procesador de comandos para la administración de CrumbCore.
-    """
     partes = command_text.strip().split()
     if not partes:
         return None
