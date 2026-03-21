@@ -224,30 +224,70 @@
 </style>
 
 <script>
-    function sharePaymentLink(url, phone, name, orderId) {
-        // 1. Siempre copiamos el link al portapapeles por seguridad (respaldo)
-        navigator.clipboard.writeText(url).catch(err => console.error("Error copiando al portapapeles: ", err));
-
-        // 2. Evaluamos si el cliente tiene un número de teléfono válido
-        if (phone && phone.trim() !== '' && phone !== 'None') {
-            // Limpiamos el número dejando solo los dígitos (WhatsApp no se lleva bien con guiones o espacios)
-            let cleanPhone = phone.replace(/\D/g, '');
-            
-            if (cleanPhone.length > 0) {
-                // Preparamos un mensaje amigable
-                let message = `¡Hola ${name}! 👋\n\nAquí tienes el enlace seguro para reportar el pago de tu orden #${orderId}:\n${url}\n\nGracias por preferir a CrumbCore. 🍪`;
-                
-                // Codificamos el mensaje para que los espacios y saltos de línea funcionen en la URL
-                let waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
-                
-                // Abrimos WhatsApp en una nueva pestaña
-                window.open(waUrl, '_blank');
-                return; // Cortamos la ejecución para que no salga el alert de abajo
+    // Función para obtener el CSRF token de las cookies de Django
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
             }
         }
+        return cookieValue;
+    }
+
+    function sharePaymentLink(url, phone, name, orderId) {
+        // 1. Siempre copiamos el link al portapapeles por seguridad (respaldo)
+        navigator.clipboard.writeText(url).catch(err => console.error("Error copiando: ", err));
+
+        // 2. Evaluamos si el cliente tiene un número válido
+        if (phone && phone.trim() !== '' && phone !== 'None') {
+            
+            // Cambiamos el icono a un "spinner" de carga temporalmente
+            const btn = event.currentTarget;
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+            btn.disabled = true;
+
+            // URL a nuestra nueva vista de Django
+            const sendUrl = "{% url 'send_payment_link_whatsapp' order.pk %}";
+
+            // 3. Enviamos la petición silenciosa (AJAX)
+            fetch(sendUrl, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Restauramos el botón
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+
+                if (data.success) {
+                    alert("✅ ¡Link enviado automáticamente por WhatsApp!");
+                } else {
+                    alert("⚠️ Link copiado, pero falló el envío automático: " + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+                alert("⚠️ Link copiado. Hubo un error de red al intentar enviar el WhatsApp.");
+            });
+            
+            return;
+        }
         
-        // 3. Fallback: Si no hay teléfono, solo avisamos que se copió
-        alert("¡Link de pago copiado con éxito! Ahora puedes pegarlo donde desees.");
+        // 4. Fallback: Si no hay teléfono, solo avisamos que se copió
+        alert("¡Link de pago copiado con éxito! El cliente no tiene teléfono registrado.");
     }
 </script>
 {% endblock %}

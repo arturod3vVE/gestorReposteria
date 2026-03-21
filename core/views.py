@@ -264,7 +264,6 @@ def create_category(request):
     return render(request, 'core/category_form.html')
 
 @user_passes_test(lambda u: u.is_staff)
-@user_passes_test(lambda u: u.is_staff)
 def order_list(request):
     # 1. Captura de filtros desde el navegador
     status_filter = request.GET.get('status')
