@@ -196,6 +196,24 @@
         });
     </script>
 
+    <script>
+        // 1. Extraemos el token fresco del HTML
+        const globalCsrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
+        // 2. Lo guardamos en el objeto Window para que cualquier Fetch en otra página pueda usar window.globalCsrfToken
+        window.globalCsrfToken = globalCsrfToken;
+
+        // 3. Configuramos jQuery para que inyecte el token AUTOMÁTICAMENTE en todas las peticiones POST/PUT
+        $.ajaxSetup({
+            beforeSend: function(xhr, settings) {
+                // Si la petición no es segura (POST) y es al mismo dominio...
+                if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                    xhr.setRequestHeader("X-CSRFToken", globalCsrfToken); // Inyectamos el token
+                }
+            }
+        });
+    </script>
+
     {% block extra_js %}{% endblock %}
 
 </body>
