@@ -1108,7 +1108,7 @@ def send_customer_bulk_whatsapp(request, pk):
         name = customer.full_name or "Cliente"
         
         # 2. Armamos el mensaje
-        message = f"¡Hola {name}! 👋\n\nAquí tienes el enlace seguro para ver tu estado de cuenta y liquidar tus órdenes pendientes en un solo pago:\n{bulk_payment_link}\n\nGracias por preferir a CrumbCore. 🍪"
+        message = f"¡Hola {name}! 👋\n\nAquí tienes el enlace seguro para ver tu estado de cuenta y pagar tus órdenes pendientes en un solo paso:\n{bulk_payment_link}\n\nGracias por preferir a CrumbCore. 🍪"
 
         # 3. Enviamos a la cola de Node.js en Railway
         enviar_whatsapp_background(customer.phone, message)
