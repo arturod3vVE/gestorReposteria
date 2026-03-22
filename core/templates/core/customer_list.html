@@ -69,7 +69,7 @@
                             </span>
                         </td>
                         <td class="align-middle text-center">
-                            <button type="button" class="btn btn-success btn-circle btn-sm shadow-sm mr-1" title="Enviar Estado de Cuenta" onclick="shareBulkPaymentLink('{{ request.scheme }}://{{ request.get_host }}{% url 'customer_bulk_payment' customer.id %}', '{{ customer.phone|default:'' }}', '{{ customer.full_name|escapejs }}')">
+                            <button type="button" class="btn btn-success btn-circle btn-sm shadow-sm mr-1" title="Enviar Estado de Cuenta" onclick="shareBulkPaymentLink(event, '{% url 'send_customer_bulk_whatsapp' customer.pk %}', '{{ request.scheme }}://{{ request.get_host }}{% url 'customer_bulk_payment' customer.id %}', '{{ customer.phone|default:'' }}')">
                                 <i class="{% if customer.phone %}fab fa-whatsapp{% else %}fas fa-link{% endif %}"></i>
                             </button>
                             <a href="{% url 'edit_customer' customer.pk %}" class="btn btn-warning btn-circle btn-sm shadow-sm" title="Editar Cliente">
@@ -125,23 +125,68 @@
     </div>
 </div>
 <script>
-    function shareBulkPaymentLink(url, phone, name) {
-        // 1. Copiamos al portapapeles por seguridad
-        navigator.clipboard.writeText(url).catch(err => console.error("Error copiando al portapapeles: ", err));
-
-        // 2. Evaluamos WhatsApp
-        if (phone && phone.trim() !== '' && phone !== 'None') {
-            let cleanPhone = phone.replace(/\D/g, '');
-            if (cleanPhone.length > 0) {
-                let message = `¡Hola ${name}! 👋\n\nAquí tienes el enlace seguro para ver tu estado de cuenta y liquidar tus órdenes pendientes en un solo pago:\n${url}\n\nGracias por preferir a CrumbCore. 🍪`;
-                let waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
-                window.open(waUrl, '_blank');
-                return;
+    // Función para obtener el CSRF token de las cookies
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
             }
         }
+        return cookieValue;
+    }
+
+    function shareBulkPaymentLink(event, sendUrl, publicLink, phone) {
+        // 1. Siempre copiamos el link al portapapeles como respaldo
+        navigator.clipboard.writeText(publicLink).catch(err => console.error("Error copiando al portapapeles: ", err));
+
+        // 2. Evaluamos si el cliente tiene teléfono válido
+        if (phone && phone.trim() !== '' && phone !== 'None') {
+            
+            // Cambiamos el icono a un spinner
+            const btn = event.currentTarget;
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            btn.disabled = true;
+
+            // 3. Petición silenciosa a Django
+            fetch(sendUrl, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Restauramos el botón
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+
+                if (data.success) {
+                    // Opcional: Puedes usar una librería como Toastr o SweetAlert en lugar de un alert feo si lo deseas
+                    alert("✅ ¡Estado de cuenta enviado automáticamente por WhatsApp!");
+                } else {
+                    alert("⚠️ Link copiado, pero falló el envío: " + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+                alert("⚠️ Link copiado. Error de red al intentar enviar el WhatsApp.");
+            });
+            
+            return;
+        }
         
-        // 3. Fallback si no hay teléfono
-        alert("¡Link de estado de cuenta copiado con éxito!");
+        // 3. Fallback: Si no hay teléfono
+        alert("¡Link de estado de cuenta copiado con éxito! El cliente no tiene teléfono registrado.");
     }
 </script>
 {% endblock %}

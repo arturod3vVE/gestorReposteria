@@ -1095,3 +1095,24 @@ def send_payment_link_whatsapp(request, pk):
         return JsonResponse({'success': True, 'message': 'Mensaje enviado a la cola en segundo plano.'})
             
     return JsonResponse({'success': False, 'error': 'Método inválido.'})
+
+def send_customer_bulk_whatsapp(request, pk):
+    if request.method == 'POST':
+        customer = get_object_or_404(Customer, pk=pk)
+        
+        if not customer.phone:
+            return JsonResponse({'success': False, 'error': 'El cliente no tiene teléfono registrado.'})
+
+        # 1. Construimos el link absoluto
+        bulk_payment_link = request.build_absolute_uri(reverse('customer_bulk_payment', args=[customer.pk]))
+        name = customer.full_name or "Cliente"
+        
+        # 2. Armamos el mensaje
+        message = f"¡Hola {name}! 👋\n\nAquí tienes el enlace seguro para ver tu estado de cuenta y liquidar tus órdenes pendientes en un solo pago:\n{bulk_payment_link}\n\nGracias por preferir a CrumbCore. 🍪"
+
+        # 3. Enviamos a la cola de Node.js en Railway
+        enviar_whatsapp_background(customer.phone, message)
+        
+        return JsonResponse({'success': True, 'message': 'Mensaje de estado de cuenta encolado.'})
+            
+    return JsonResponse({'success': False, 'error': 'Método inválido.'})

@@ -28,6 +28,7 @@ urlpatterns = [
     path('orders/<int:pk>/payments/verify/', views.verify_order_payments, name='verify_order_payments'),
     path('orders/<int:pk>/status/<str:new_status>/', views.update_order_status, name='update_order_status'),
     path('orders/<int:pk>/send-link-whatsapp/', views.send_payment_link_whatsapp, name='send_payment_link_whatsapp'),
+    path('customer/<int:pk>/send-bulk-whatsapp/', views.send_customer_bulk_whatsapp, name='send_customer_bulk_whatsapp'),
     
     path('p/<int:pk>/', views.public_payment_link, name='public_payment_link'),
     path('p/c/<int:customer_id>/', views.customer_bulk_payment, name='customer_bulk_payment'),
