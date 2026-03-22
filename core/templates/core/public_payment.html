@@ -308,6 +308,17 @@
                 }
             });
         }
+    if (form) {
+            form.addEventListener('submit', function() {
+                // Desactivamos el botón inmediatamente
+                submitBtn.disabled = true;
+                // Cambiamos el texto y agregamos un spinner de carga
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Subiendo reporte...';
+                
+                // Opcional: Oscurecer un poco la pantalla para dar sensación de carga
+                document.body.style.opacity = '0.8';
+            });
+        }
     });
 </script>
 
