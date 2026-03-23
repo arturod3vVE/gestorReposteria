@@ -217,7 +217,6 @@ class OrderItem(models.Model):
         # Finalmente, guardamos el OrderItem normalmente
         super().save(*args, **kwargs)
     def delete(self, *args, **kwargs):
-        # 3. Si eliminamos un producto de la orden, devolvemos el stock a la vitrina
         if self.product.track_stock:
             self.product.stock_quantity += self.quantity
             self.product.save()
@@ -229,6 +228,7 @@ class PaymentDestination(models.Model):
         ('MOBILE', 'Pago Móvil'),
         ('TRANSFER', 'Transferencia Bancaria'),
         ('ZELLE', 'Zelle / Dólares Digitales'),
+        ('USDT', 'Binance (USDT/USDC)'),
         ('CASH', 'Efectivo (Punto de Entrega)'),
     ]
 
@@ -267,14 +267,17 @@ class PaymentDestination(models.Model):
             return f"Banco: {self.bank}\nCuenta: {self.account_number}\nDoc: {self.document_type}-{self.document_number}"
         elif self.destination_type == 'ZELLE':
             return f"Zelle: {self.email}\nTitular: {self.owner_name}"
+        elif self.destination_type == 'USDT':
+            return f"correo: {self.email}\nTitular: {self.owner_name}"
         return "Pago presencial en divisas o moneda local."
 
 class Payment(models.Model):
     PAYMENT_METHODS = [
-        ('CASH', 'Cash'),
-        ('TRANSFER', 'Bank Transfer'),
-        ('CARD', 'Card / POS'),
-        ('MOBILE', 'Mobile Payment'),
+        ('MOBILE', 'Pago Móvil'),
+        ('TRANSFER', 'Transferencia Bancaria'),
+        ('ZELLE', 'Zelle / Dólares Digitales'),
+        ('USDT', 'Binance (USDT/USDC)'),
+        ('CASH', 'Efectivo (Punto de Entrega)'),
     ]
 
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='payments')
@@ -295,8 +298,6 @@ class Payment(models.Model):
     def save(self, *args, **kwargs):
         self.clean()
 
-        # ¡TRUCO PRO! Solo comprimimos si hay recibo Y si NO ha sido comprimido antes.
-        # Esto evita descargas innecesarias desde Supabase cada vez que editas el pago.
         if self.receipt and '_compressed' not in self.receipt.name:
             img = Image.open(self.receipt)
 
@@ -308,7 +309,10 @@ class Payment(models.Model):
             output = BytesIO()
             img.save(output, format='JPEG', quality=60, optimize=True)
             output.seek(0)
-            file_name = self.receipt.name.split('.')[0] + '_compressed.jpg'
+            
+            safe_uuid = str(uuid.uuid4())
+            file_name = f"{safe_uuid}_compressed.jpg"
+            
             self.receipt = InMemoryUploadedFile(
                 output,
                 'ImageField',
