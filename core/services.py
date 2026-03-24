@@ -112,7 +112,7 @@ def send_whatsapp_payment_notification(order, amount, status='approved'):
     except requests.exceptions.RequestException as e:
         logger.error(f"Fallo al notificar por WhatsApp a {phone}: {e}")
 
-def process_telegram_command(command_text):
+def process_telegram_command(command_text, chat_id):
     partes = command_text.strip().split()
     if not partes:
         return None
@@ -120,13 +120,25 @@ def process_telegram_command(command_text):
     comando = partes[0].lower()
     hoy = timezone.now().date()
     
+    # --- 1. IDENTIFICAR LA TIENDA (MULTI-TENANT) ---
+    try:
+        # Buscamos a qué tienda le pertenece este chat de Telegram
+        config = StoreSettings.objects.get(telegram_chat_id=str(chat_id))
+        tienda_user = config.user
+        store_name = config.store_name or "CrumbCore"
+    except StoreSettings.DoesNotExist:
+        # Si alguien que no está registrado le escribe un comando al bot
+        return "❌ *Acceso Denegado:*\nNo tienes ninguna tienda vinculada a este chat. Ingresa a tu panel de CrumbCore y configura tu Chat ID."
+
     # --- COMANDO: /METRICAS ---
     if comando.startswith('/metricas'):
-        ventas_hoy = Order.objects.filter(created_at__date=hoy).aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
-        pagos_hoy = Payment.objects.filter(is_verified=True, reported_at__date=hoy).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        # 🎯 FILTRAMOS POR tienda_user
+        ventas_hoy = Order.objects.filter(user=tienda_user, created_at__date=hoy).aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+        pagos_hoy = Payment.objects.filter(user=tienda_user, is_verified=True, reported_at__date=hoy).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         
         return (
-            f"🧁 *CRUMBCORE: REPORTE DIARIO* ({hoy.strftime('%d/%m/%Y')})\n"
+            f"🧁 *REPORTE DIARIO - {store_name.upper()}*\n"
+            f"📅 Fecha: {hoy.strftime('%d/%m/%Y')}\n"
             f"----------------------------------\n"
             f"📈 *Ventas Brutas:* ${ventas_hoy}\n"
             f"💵 *Cobranza Verificada:* ${pagos_hoy}\n"
@@ -135,7 +147,8 @@ def process_telegram_command(command_text):
 
     # --- COMANDO: /DEUDORES ---
     elif comando.startswith('/deudores'):
-        ordenes_pendientes = Order.objects.exclude(payment_status='PAID').select_related('customer')
+        # 🎯 FILTRAMOS POR tienda_user
+        ordenes_pendientes = Order.objects.filter(user=tienda_user).exclude(payment_status='PAID').select_related('customer')
         deudores = []
         for order in ordenes_pendientes:
             saldo = order.balance_due_calculated
@@ -144,10 +157,10 @@ def process_telegram_command(command_text):
                 deudores.append((cliente, order.id, saldo))
         
         if not deudores:
-            return "✅ *CrumbCore:* Todas las cuentas están al día."
+            return f"✅ *{store_name}:* Todas las cuentas están al día."
             
         deudores = sorted(deudores, key=lambda x: x[2], reverse=True)[:5]
-        respuesta = "⚠️ *CLIENTES CON SALDO PENDIENTE*\n"
+        respuesta = f"⚠️ *DEUDORES - {store_name.upper()}*\n"
         for d in deudores:
             respuesta += f"👤 {d[0]} | 🆔 #{d[1]} ➔ *${d[2]}*\n"
         return respuesta
@@ -159,9 +172,10 @@ def process_telegram_command(command_text):
         
         try:
             order_id = partes[1]
-            order = Order.objects.prefetch_related('items__product').get(id=order_id)
+            # 🎯 FILTRAMOS POR tienda_user PARA QUE NO ESPÍE ÓRDENES AJENAS
+            order = Order.objects.prefetch_related('items__product').get(id=order_id, user=tienda_user)
             
-            status_map = {'PENDING': '⏳ Pendiente', 'PREPARING': '👨‍🍳 En Cocina', 'READY': '📦 Listo', 'DELIVERED': '✅ Entregado', 'CANCELLED': '🚫 Cancelado'}
+            status_map = {'PENDING': '⏳ Pendiente', 'PREPARING': '👨‍🍳 En Cocina', 'DELIVERED': '✅ Entregado', 'CANCELLED': '🚫 Cancelado'}
             
             items_resumen = ""
             for item in order.items.all():
@@ -169,6 +183,7 @@ def process_telegram_command(command_text):
 
             return (
                 f"📑 *DETALLE DE ORDEN #{order.id}*\n"
+                f"🏪 *Tienda:* {store_name}\n"
                 f"----------------------------------\n"
                 f"👤 *Cliente:* {order.customer.full_name if order.customer else 'N/A'}\n"
                 f"📍 *Status:* {status_map.get(order.status, order.status)}\n"
@@ -176,7 +191,7 @@ def process_telegram_command(command_text):
                 f"🔴 *Por pagar:* ${order.balance_due_calculated}\n\n"
                 f"📦 *Productos:*\n{items_resumen}"
             )
-        except:
-            return f"❓ No existe la orden #{partes[1]}."
+        except Order.DoesNotExist:
+            return f"❓ No tienes ninguna orden registrada con el ID #{partes[1]}."
 
     return None

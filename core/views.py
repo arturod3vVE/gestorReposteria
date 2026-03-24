@@ -21,6 +21,7 @@ from .utils import enviar_whatsapp_background, send_telegram_receipt_async
 from django.views.decorators.http import require_POST
 from django.conf import settings
 from django.urls import reverse
+from django.http import HttpResponse
 
 @login_required
 def dashboard(request):
@@ -921,23 +922,43 @@ def delete_product(request, pk):
     return render(request, 'core/product_confirm_delete.html', {'product': product})
 
 @csrf_exempt
-def telegram_webhook(request):
+def telegram_webhook(request, token=None): 
+    # (El parámetro 'token' es opcional dependiendo de cómo lo pusiste en urls.py)
+    
     if request.method == 'POST':
         try:
             update = json.loads(request.body.decode('utf-8'))
             TOKEN = settings.TELEGRAM_BOT_TOKEN
             
+            # ==========================================
+            # 1. PROCESAR BOTONES (Aprobar / Rechazar)
+            # ==========================================
             if 'callback_query' in update:
                 callback = update['callback_query']
                 chat_id = callback['message']['chat']['id']
                 message_id = callback['message']['message_id']
                 data = callback['data'] 
+                
+                # Detectar si el mensaje original tenía foto o era puro texto
+                is_photo = 'caption' in callback['message']
                 original_text = callback['message'].get('caption', callback['message'].get('text', ''))
                 
                 action_short, payment_id = data.split('_')
                 payment = Payment.objects.get(id=payment_id)
-                action_full = 'approve' if action_short == 'app' else 'reject'
                 
+                # 🔒 SEGURIDAD MULTI-TENANT: ¿El botón lo pulsó el dueño de este pago?
+                try:
+                    config = StoreSettings.objects.get(telegram_chat_id=str(chat_id))
+                    if payment.user != config.user:
+                        raise Exception("Usuario no coincide")
+                except Exception:
+                    # Si no es el dueño, le mandamos una alerta en pantalla y abortamos
+                    requests.get(f"https://api.telegram.org/bot{TOKEN}/answerCallbackQuery", 
+                                 params={'callback_query_id': callback['id'], 'text': '❌ No tienes permiso para modificar este pago.', 'show_alert': True})
+                    return JsonResponse({"status": "ok"})
+                
+                # Ejecutamos la acción en el sistema
+                action_full = 'approve' if action_short == 'app' else 'reject'
                 success, result_message = process_payment_action(payment, action_full)
                 
                 if success and action_full == 'approve':
@@ -948,19 +969,37 @@ def telegram_webhook(request):
                     estado_emoji = "❌" 
                     
                 nuevo_estado = f"{estado_emoji} *{result_message}*"
+                nuevo_texto = f"{original_text}\n\n{nuevo_estado}"
 
                 requests.get(f"https://api.telegram.org/bot{TOKEN}/answerCallbackQuery?callback_query_id={callback['id']}")
-                nuevo_texto = f"{original_text}\n\n{nuevo_estado}"
-                edit_url = f"https://api.telegram.org/bot{TOKEN}/editMessageCaption"
-                requests.post(edit_url, json={'chat_id': chat_id, 'message_id': message_id, 'caption': nuevo_texto, 'parse_mode': 'Markdown'})
+                
+                if is_photo:
+                    edit_url = f"https://api.telegram.org/bot{TOKEN}/editMessageCaption"
+                    requests.post(edit_url, json={'chat_id': chat_id, 'message_id': message_id, 'caption': nuevo_texto, 'parse_mode': 'Markdown'})
+                else:
+                    edit_url = f"https://api.telegram.org/bot{TOKEN}/editMessageText"
+                    requests.post(edit_url, json={'chat_id': chat_id, 'message_id': message_id, 'text': nuevo_texto, 'parse_mode': 'Markdown'})
             
-            # --- CASO B: EL USUARIO ESCRIBIÓ UN COMANDO DE TEXTO ---
+            # ==========================================
+            # 2. PROCESAR COMANDOS DE TEXTO
+            # ==========================================
             elif 'message' in update and 'text' in update['message']:
                 chat_id = update['message']['chat']['id']
                 texto_recibido = update['message']['text']
                 
-                if texto_recibido.startswith('/'):
-                    respuesta_texto = process_telegram_command(texto_recibido)
+                if texto_recibido.startswith('/start'):
+                    first_name = update['message']['chat'].get('first_name', 'Repostero')
+                    reply_text = (
+                        f"👋 ¡Hola, {first_name}! Bienvenido al Bot de Notificaciones de CrumbCore.\n\n"
+                        f"Tu ID de conexión es: `{chat_id}`\n\n"
+                        f"📌 Copia ese número (puedes tocarlo para copiar) y pégalo en la sección de "
+                        f"Configuraciones de tu panel para vincular tu tienda."
+                    )
+                    url_enviar = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+                    requests.post(url_enviar, json={'chat_id': chat_id, 'text': reply_text, 'parse_mode': 'Markdown'})
+                
+                elif texto_recibido.startswith('/'):
+                    respuesta_texto = process_telegram_command(texto_recibido, chat_id)
                     
                     if respuesta_texto:
                         url_enviar = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
@@ -968,8 +1007,10 @@ def telegram_webhook(request):
 
         except Exception as e:
             print(f"Webhook error: {e}")
-            
+    
         return JsonResponse({"status": "ok"})
+    
+    return JsonResponse({"error": "Method not allowed"}, status=405)
 
 
 @login_required
@@ -1076,3 +1117,48 @@ def store_settings_view(request):
         return redirect('store_settings')
         
     return render(request, 'core/store_settings.html', {'settings': settings})
+
+@csrf_exempt  # Telegram no envía token CSRF, así que debemos eximir esta vista
+def telegram_webhook_start(request):
+    if request.method == 'POST':
+        try:
+            # Leemos la data que manda Telegram
+            payload = json.loads(request.body)
+            
+            # Verificamos que sea un mensaje de texto normal
+            if 'message' in payload:
+                chat_id = payload['message']['chat']['id']
+                text = payload['message'].get('text', '')
+                
+                # Obtenemos el nombre del usuario si lo tiene
+                first_name = payload['message']['chat'].get('first_name', 'Repostero')
+
+                # Si el mensaje es /start
+                if text.startswith('/start'):
+                    bot_token = settings.TELEGRAM_BOT_TOKEN
+                    
+                    reply_text = (
+                        f"👋 ¡Hola, {first_name}! Bienvenido a CrumbCore.\n\n"
+                        f"Tu ID de conexión es: <code>{chat_id}</code>\n\n"
+                        f"Copia ese número (puedes tocarlo para copiar) y pégalo en la sección de "
+                        f"Configuraciones de tu panel administrativo para empezar a recibir alertas de pagos."
+                    )
+                    
+                    # Le respondemos a Telegram
+                    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+                    data = {
+                        'chat_id': chat_id,
+                        'text': reply_text,
+                        'parse_mode': 'HTML'
+                    }
+                    requests.post(url, json=data)
+                    
+            # SIEMPRE debemos responder 200 OK, sino Telegram intentará reenviar el mensaje
+            return HttpResponse(status=200)
+            
+        except Exception as e:
+            print(f"Error procesando webhook de Telegram: {e}")
+            return HttpResponse(status=200)
+            
+    # Si alguien intenta entrar por el navegador (GET), le damos error
+    return HttpResponse(status=403)
