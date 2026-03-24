@@ -27,7 +27,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY', 'clave_por_defecto_desarrollo')
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = ['crumbcore-app.onrender.com']
+ALLOWED_HOSTS = ['crumbcore-app.onrender.com', 'localhost', '127.0.0.1']
 
 
 # Application definition
