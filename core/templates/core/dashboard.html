@@ -2,10 +2,46 @@
 
 {% block title %}Dashboard - CrumbCore{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* 📱 MAGIA RESPONSIVE: De Tabla a Tarjetas en Móviles */
+    @media (max-width: 767px) {
+        .table-mobile-cards thead { display: none; }
+        .table-mobile-cards tr { 
+            display: block; 
+            margin-bottom: 1rem; 
+            border: 1px solid #e3e6f0; 
+            border-radius: 0.5rem; 
+            background-color: #fff; 
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075); 
+        }
+        .table-mobile-cards td { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            text-align: right !important; 
+            border-top: none; 
+            border-bottom: 1px solid #f8f9fc; 
+            padding: 0.75rem; 
+        }
+        .table-mobile-cards td:last-child { border-bottom: none; }
+        .table-mobile-cards td::before { 
+            content: attr(data-label); 
+            font-weight: bold; 
+            text-transform: uppercase; 
+            font-size: 0.75rem; 
+            color: #858796; 
+            text-align: left; 
+            margin-right: 15px; 
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
     <h1 class="h3 mb-0 text-gray-800">Panel Principal</h1>
-    <div>
+    <div class="mt-3 mt-sm-0">
         <span class="badge badge-info p-2 shadow-sm mr-2" style="font-size: 0.9rem;">
             Ventas Hoy: ${{ ventas_hoy }}
         </span>
@@ -51,9 +87,6 @@
     <div class="col-xl-3 col-md-6 mb-4">
         <div class="card border-left-{% if pagos_por_verificar > 0 %}warning{% else %}success{% endif %} shadow h-100 py-2 position-relative" style="transition: transform .2s; cursor: pointer;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
             <div class="card-body">
-                
-                <a href="{% url 'pending_payments_list' %}" class="stretched-link"></a>
-                
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-{% if pagos_por_verificar > 0 %}warning{% else %}success{% endif %} text-uppercase mb-1">
@@ -65,6 +98,7 @@
                         <i class="fas fa-file-invoice-dollar fa-2x text-gray-300"></i>
                     </div>
                 </div>
+                <a href="{% url 'pending_payments_list' %}" class="stretched-link"></a>
             </div>
         </div>
     </div>
@@ -95,7 +129,7 @@
             </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-sm table-hover">
+                    <table class="table table-sm table-hover table-mobile-cards">
                         <thead class="bg-light">
                             <tr>
                                 <th>Pedido</th>
@@ -108,14 +142,14 @@
                         <tbody>
                             {% for entrega in proximas_entregas %}
                             <tr>
-                                <td class="align-middle font-weight-bold">#{{ entrega.id }}</td>
-                                <td class="align-middle">{{ entrega.customer.full_name|default:"Venta de Mostrador" }}</td>
-                                <td class="align-middle">{{ entrega.expected_delivery_date|date:"d/m/Y - h:i A" }}</td>
-                                <td class="align-middle text-center">
+                                <td data-label="Pedido" class="align-middle font-weight-bold">#{{ entrega.id }}</td>
+                                <td data-label="Cliente" class="align-middle">{{ entrega.customer.full_name|default:"Venta de Mostrador" }}</td>
+                                <td data-label="Fecha" class="align-middle">{{ entrega.expected_delivery_date|date:"d/m/Y - h:i A" }}</td>
+                                <td data-label="Estado" class="align-middle text-center">
                                     <span class="badge badge-info px-2 py-1">{{ entrega.get_status_display }}</span>
                                 </td>
-                                <td class="align-middle text-center">
-                                    <a href="{% url 'order_detail' entrega.id %}" class="btn btn-sm btn-outline-info rounded-circle" title="Ver Detalles">
+                                <td data-label="Acción" class="align-middle text-center">
+                                    <a href="{% url 'order_detail' entrega.public_id %}" class="btn btn-sm btn-outline-info rounded-circle" title="Ver Detalles">
                                         <i class="fas fa-eye"></i>
                                     </a>
                                 </td>
@@ -144,12 +178,12 @@
                         <div class="float-right">
                             <span class="text-danger font-weight-bold mr-2">${{ deudor.monto }}</span>
                             
-                            {% if deudor.customer_id %}
-                                <button type="button" class="btn btn-success btn-sm py-0 px-2 rounded shadow-sm" title="Cobrar Estado de Cuenta" onclick="shareBulkPaymentLink('{{ request.scheme }}://{{ request.get_host }}{% url 'customer_bulk_payment' deudor.customer_id %}', '{{ deudor.telefono|default:'' }}', '{{ deudor.cliente|escapejs }}')">
+                            {% if deudor.customer_public_id %}
+                                <button type="button" class="btn btn-success btn-sm py-0 px-2 rounded shadow-sm" title="Cobrar Estado de Cuenta" onclick="shareBulkPaymentLink('{{ request.scheme }}://{{ request.get_host }}{% url 'customer_bulk_payment' deudor.customer_public_id %}', '{{ deudor.telefono|default:'' }}', '{{ deudor.cliente|escapejs }}')">
                                     <i class="fab fa-whatsapp"></i>
                                 </button>
                             {% else %}
-                                <button type="button" class="btn btn-secondary btn-sm py-0 px-2 rounded shadow-sm" title="Copiar Link de Orden Individual" onclick="shareBulkPaymentLink('{{ request.scheme }}://{{ request.get_host }}{% url 'public_payment_link' deudor.id %}', '', 'Cliente Mostrador')">
+                                <button type="button" class="btn btn-secondary btn-sm py-0 px-2 rounded shadow-sm" title="Copiar Link de Orden Individual" onclick="shareBulkPaymentLink('{{ request.scheme }}://{{ request.get_host }}{% url 'public_payment_link' deudor.public_id %}', '', 'Cliente Mostrador')">
                                     <i class="fas fa-link"></i>
                                 </button>
                             {% endif %}
@@ -157,7 +191,7 @@
 
                     </div>
                     <div class="text-xs text-muted">
-                        Última Orden <a href="{% url 'order_detail' deudor.id %}">#{{ deudor.id }}</a> - Entrega: {{ deudor.fecha_entrega|date:"d/m/Y" }}
+                        Última Orden <a href="{% url 'order_detail' deudor.public_id %}">#{{ deudor.id }}</a> - Entrega: {{ deudor.fecha_entrega|date:"d/m/Y" }}
                     </div>
                     <hr class="my-2">
                 </div>
@@ -201,12 +235,12 @@
 
     </div>
 </div>
+
+{% block extra_js %}
 <script>
     function shareBulkPaymentLink(url, phone, name) {
-        // 1. Copiamos al portapapeles por seguridad
         navigator.clipboard.writeText(url).catch(err => console.error("Error copiando al portapapeles: ", err));
 
-        // 2. Evaluamos WhatsApp
         if (phone && phone.trim() !== '' && phone !== 'None') {
             let cleanPhone = phone.replace(/\D/g, '');
             if (cleanPhone.length > 0) {
@@ -217,8 +251,8 @@
             }
         }
         
-        // 3. Fallback si no hay teléfono
         alert("¡Link de estado de cuenta copiado con éxito!");
     }
 </script>
+{% endblock %}
 {% endblock %}

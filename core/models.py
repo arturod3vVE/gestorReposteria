@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator
 from decimal import Decimal
 from django.core.exceptions import ValidationError
@@ -11,6 +12,7 @@ import sys
 class ExchangeRate(models.Model):
     rate = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0.0001'))])
     created_at = models.DateTimeField(auto_now_add=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return f"{self.rate} - {self.created_at.strftime('%d/%m/%Y %H:%M')}"
@@ -18,6 +20,7 @@ class ExchangeRate(models.Model):
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True, null=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return self.name
@@ -40,6 +43,7 @@ class Ingredient(models.Model):
     cost_per_unit = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))])
     track_stock = models.BooleanField(default=False)
     stock_quantity = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return f"{self.name} ({self.measurement_unit})"
@@ -54,6 +58,7 @@ class Product(models.Model):
     recipe_yield = models.PositiveIntegerField(default=1, help_text="Cantidad de unidades que salen de esta receta")
     track_stock = models.BooleanField(default=False, help_text="Track physical inventory for this finished product")
     stock_quantity = models.IntegerField(default=0, help_text="Current available units for immediate sale")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return self.name
@@ -85,6 +90,7 @@ class RecipeItem(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='recipe_items')
     ingredient = models.ForeignKey(Ingredient, on_delete=models.PROTECT)
     quantity_required = models.DecimalField(max_digits=8, decimal_places=2, help_text="Quantity in the ingredient's measurement unit")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return f"{self.quantity_required} {self.ingredient.measurement_unit} of {self.ingredient.name} for {self.product.name}"
@@ -97,6 +103,8 @@ class Customer(models.Model):
     phone = models.CharField(max_length=20, blank=True, null=True)
     email = models.EmailField(max_length=255, blank=True, null=True)
     delivery_address = models.TextField(blank=True, null=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    public_id = models.UUIDField(default=uuid.uuid4, editable=False, null=True, blank=True)
 
     def __str__(self):
         return self.full_name
@@ -129,6 +137,8 @@ class Order(models.Model):
     payment_status = models.CharField(max_length=15, choices=PAYMENT_STATUS, default='PENDING')
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     special_notes = models.TextField(blank=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    public_id = models.UUIDField(default=uuid.uuid4, editable=False, null=True, blank=True)
 
     def __str__(self):
         return f"Order #{self.id} - {self.customer}"
@@ -189,6 +199,7 @@ class OrderItem(models.Model):
     product = models.ForeignKey(Product, on_delete=models.PROTECT)
     quantity = models.PositiveIntegerField(default=1)
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return f"{self.quantity} x {self.product.name}"
@@ -243,7 +254,6 @@ class PaymentDestination(models.Model):
     name = models.CharField(max_length=100, help_text="e.g., Pago Móvil Banesco Arturo")
     destination_type = models.CharField(max_length=15, choices=DESTINATION_TYPES)
 
-    # Campos Específicos (Nulables para que se adapten al tipo de pago)
     bank = models.CharField(max_length=100, blank=True, null=True)
     phone = models.CharField(max_length=20, blank=True, null=True)
     document_type = models.CharField(max_length=1, choices=DOCUMENT_TYPES, default='V', blank=True, null=True)
@@ -251,9 +261,9 @@ class PaymentDestination(models.Model):
     account_number = models.CharField(max_length=30, blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
     owner_name = models.CharField(max_length=100, blank=True, null=True)
-
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return f"{self.name} ({self.get_destination_type_display()})"
@@ -289,6 +299,7 @@ class Payment(models.Model):
     reported_at = models.DateTimeField(auto_now_add=True)
     transaction_group = models.UUIDField(null=True, blank=True, editable=False)
     destination = models.ForeignKey(PaymentDestination, on_delete=models.SET_NULL, null=True, blank=True, related_name='payments')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
 
     def clean(self):
         super().clean()

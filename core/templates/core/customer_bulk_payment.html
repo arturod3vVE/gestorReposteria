@@ -22,6 +22,39 @@
         .payment-card-label.selected {  border-color: #f8bbd0; background-color: #f8faff; }
         .radio-icon { color: #d1d3e2; }
         .payment-card-label.selected .radio-icon { color: #f8bbd0; }
+
+        /* 📱 MAGIA RESPONSIVE: De Tabla a Tarjetas en Móviles */
+        @media (max-width: 767px) {
+            .table-mobile-cards thead { display: none; } /* Ocultamos la cabecera original */
+            .table-mobile-cards tr { 
+                display: block; 
+                margin-bottom: 1rem; 
+                border: 1px solid #e3e6f0; 
+                border-radius: 0.5rem; 
+                background-color: #fff; 
+                box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075); 
+            }
+            .table-mobile-cards td { 
+                display: flex; 
+                justify-content: space-between; 
+                align-items: center; 
+                text-align: right !important; 
+                border-top: none; 
+                border-bottom: 1px solid #f8f9fc; 
+                padding: 0.75rem; 
+            }
+            .table-mobile-cards td:last-child { border-bottom: none; }
+            /* Inyectamos el nombre de la columna usando el atributo data-label */
+            .table-mobile-cards td::before { 
+                content: attr(data-label); 
+                font-weight: bold; 
+                text-transform: uppercase; 
+                font-size: 0.75rem; 
+                color: #858796; 
+                text-align: left; 
+                margin-right: 15px; 
+            }
+        }
     </style>
 </head>
 <body>
@@ -69,7 +102,7 @@
             {% else %}
 
                 <div class="table-responsive mb-4">
-                    <table class="table table-sm table-bordered">
+                    <table class="table table-sm table-bordered table-mobile-cards">
                         <thead class="bg-light text-center small text-uppercase">
                             <tr>
                                 <th>Orden</th>
@@ -80,9 +113,9 @@
                         <tbody>
                             {% for order in orders %}
                             <tr>
-                                <td class="align-middle text-center font-weight-bold">#{{ order.id }}</td>
-                                <td class="align-middle text-center text-muted small">{{ order.created_at|date:"d/m/Y" }}</td>
-                                <td class="align-middle text-right text-danger font-weight-bold">${{ order.balance_due_calculated }}</td>
+                                <td data-label="Orden" class="align-middle text-center font-weight-bold">#{{ order.id }}</td>
+                                <td data-label="Fecha" class="align-middle text-center text-muted small">{{ order.created_at|date:"d/m/Y" }}</td>
+                                <td data-label="Deuda Total" class="align-middle text-right text-danger font-weight-bold">${{ order.balance_due_calculated }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -100,6 +133,7 @@
                 <form method="POST" enctype="multipart/form-data" id="bulk_payment_form">
                     {% csrf_token %}
                     <input type="hidden" name="payment_method" id="hidden_payment_method" required>
+                    <input type="hidden" name="destination_id" id="hidden_destination_id">
 
                     <h6 class="font-weight-bold text-gray-800 mb-3 border-top pt-4">1. Selecciona cómo realizaste el pago:</h6>
                     
@@ -107,7 +141,7 @@
                         {% for dest in destinations %}
                             <div class="col-12 mb-2">
                                 <label class="card payment-card-label rounded shadow-sm w-100 mb-0">
-                                    <input type="radio" class="d-none payment-radio" data-type="{{ dest.destination_type }}">
+                                    <input type="radio" class="d-none payment-radio" data-type="{{ dest.destination_type }}" data-id="{{ dest.id }}">
                                     <div class="card-body p-3">
                                         <div class="d-flex w-100 justify-content-between align-items-center mb-2">
                                             <h6 class="mb-0 font-weight-bold text-primary">{{ dest.name }}</h6>
@@ -143,7 +177,7 @@
                         <div class="form-group">
                             <label class="font-weight-bold text-gray-800 small">Comprobante (Obligatorio)</label>
                             <input type="file" name="receipt" class="form-control-file border p-2 rounded bg-light" accept="image/*,.pdf" required>
-                            <small class="text-muted mt-1 d-block">Sube la captura de pantalla de tu transferencia por el monto exacto de <strong>${{ max_reportable }}</strong>.</small>
+                            <small class="text-muted mt-1 d-block">Sube la captura de pantalla por el monto exacto de <strong>${{ max_reportable }}</strong>.</small>
                         </div>
 
                         <button type="submit" class="btn btn-primary btn-block btn-lg font-weight-bold mt-4 shadow-sm" id="submit_btn">
@@ -163,6 +197,11 @@
         const radios = document.querySelectorAll('.payment-radio');
         const detailsSection = document.getElementById('payment_details_section');
         const hiddenMethod = document.getElementById('hidden_payment_method');
+        
+        // CORRECCIÓN: Definimos las variables que faltaban
+        const hiddenDestination = document.getElementById('hidden_destination_id');
+        const form = document.getElementById('bulk_payment_form');
+        const submitBtn = document.getElementById('submit_btn');
 
         radios.forEach(radio => {
             radio.addEventListener('change', function() {
@@ -179,17 +218,17 @@
                 icon.classList.replace('far', 'fas');
 
                 if (detailsSection) detailsSection.style.display = 'block';
+                
+                // Pasamos los datos seleccionados a los campos ocultos del formulario
                 if (hiddenMethod) hiddenMethod.value = this.getAttribute('data-type');
+                if (hiddenDestination) hiddenDestination.value = this.getAttribute('data-id');
             });
         });
-    if (form) {
+
+        if (form) {
             form.addEventListener('submit', function() {
-                // Desactivamos el botón inmediatamente
                 submitBtn.disabled = true;
-                // Cambiamos el texto y agregamos un spinner de carga
                 submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Subiendo reporte...';
-                
-                // Opcional: Oscurecer un poco la pantalla para dar sensación de carga
                 document.body.style.opacity = '0.8';
             });
         }

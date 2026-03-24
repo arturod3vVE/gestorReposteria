@@ -2,10 +2,54 @@
 
 {% block title %}Directorio de Clientes - CrumbCore{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* 📱 MAGIA RESPONSIVE: De Tabla a Tarjetas en Móviles */
+    @media (max-width: 767px) {
+        .table-mobile-cards thead { display: none; }
+        .table-mobile-cards tr { 
+            display: block; 
+            margin-bottom: 1rem; 
+            border: 1px solid #e3e6f0; 
+            border-radius: 0.5rem; 
+            background-color: #fff; 
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075); 
+        }
+        .table-mobile-cards td { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            text-align: right !important; 
+            border-top: none; 
+            border-bottom: 1px solid #f8f9fc; 
+            padding: 0.75rem; 
+        }
+        .table-mobile-cards td:last-child { border-bottom: none; }
+        .table-mobile-cards td::before { 
+            content: attr(data-label); 
+            font-weight: bold; 
+            text-transform: uppercase; 
+            font-size: 0.75rem; 
+            color: #858796; 
+            text-align: left; 
+            margin-right: 15px; 
+        }
+        /* Ajuste específico para agrupar los botones a la derecha */
+        .table-mobile-cards td.acciones-td {
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        .table-mobile-cards td.acciones-td::before {
+            margin-right: auto; /* Empuja el label a la izquierda y los botones a la derecha */
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
     <h1 class="h3 mb-0 text-gray-800">Directorio de Clientes</h1>
-    <a href="{% url 'create_customer' %}" class="btn btn-sm btn-primary shadow-sm">
+    <a href="{% url 'create_customer' %}" class="btn btn-sm btn-primary shadow-sm mt-3 mt-sm-0">
         <i class="fas fa-plus fa-sm text-white-50"></i> Nuevo Cliente
     </a>
 </div>
@@ -22,11 +66,11 @@
 {% endif %}
 
 <div class="card shadow mb-4">
-    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-        <h6 class="m-0 font-weight-bold text-primary">Cartera de Clientes</h6>
+    <div class="card-header py-3 d-flex flex-column flex-sm-row align-items-sm-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary mb-3 mb-sm-0">Cartera de Clientes</h6>
         
-        <form method="GET" class="form-inline d-none d-sm-inline-block">
-            <div class="input-group input-group-sm">
+        <form method="GET" class="form-inline w-100 w-sm-auto">
+            <div class="input-group input-group-sm w-100">
                 <input type="text" name="search" class="form-control bg-light border-0 small" placeholder="Buscar por nombre..." value="{{ search_query }}">
                 <div class="input-group-append">
                     <button class="btn btn-primary" type="submit">
@@ -44,7 +88,7 @@
     
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-bordered table-hover" width="100%" cellspacing="0">
+            <table class="table table-bordered table-hover table-mobile-cards" width="100%" cellspacing="0">
                 <thead class="bg-light">
                     <tr>
                         <th>Nombre Completo</th>
@@ -57,25 +101,25 @@
                 <tbody>
                     {% for customer in customers %}
                     <tr>
-                        <td class="align-middle font-weight-bold text-gray-800">{{ customer.full_name }}</td>
-                        <td class="align-middle">
+                        <td data-label="Nombre" class="align-middle font-weight-bold text-gray-800">{{ customer.full_name }}</td>
+                        <td data-label="Contacto" class="align-middle">
                             {% if customer.phone %}<i class="fas fa-phone fa-sm text-muted mr-1"></i> {{ customer.phone }}<br>{% endif %}
                             {% if customer.email %}<i class="fas fa-envelope fa-sm text-muted mr-1"></i> {{ customer.email }}{% endif %}
                         </td>
-                        <td class="align-middle small">{{ customer.delivery_address|default:"<span class='text-muted font-italic'>No registrada</span>"|safe }}</td>
-                        <td class="align-middle text-center">
+                        <td data-label="Dirección" class="align-middle small">{{ customer.delivery_address|default:"<span class='text-muted font-italic'>No registrada</span>"|safe }}</td>
+                        <td data-label="Pedidos" class="align-middle text-center">
                             <span class="badge badge-{% if customer.total_orders > 0 %}success{% else %}secondary{% endif %} px-2 py-1">
                                 {{ customer.total_orders }}
                             </span>
                         </td>
-                        <td class="align-middle text-center">
-                            <button type="button" class="btn btn-success btn-circle btn-sm shadow-sm mr-1" title="Enviar Estado de Cuenta" onclick="shareBulkPaymentLink(event, '{% url 'send_customer_bulk_whatsapp' customer.pk %}', '{{ request.scheme }}://{{ request.get_host }}{% url 'customer_bulk_payment' customer.id %}', '{{ customer.phone|default:'' }}')">
+                        <td data-label="Acciones" class="align-middle text-center acciones-td">
+                            <button type="button" class="btn btn-success btn-circle btn-sm shadow-sm mr-1" title="Enviar Estado de Cuenta" onclick="shareBulkPaymentLink(event, '{% url 'send_customer_bulk_whatsapp' customer.public_id %}', '{{ request.scheme }}://{{ request.get_host }}{% url 'customer_bulk_payment' customer.public_id %}', '{{ customer.phone|default:'' }}')">
                                 <i class="{% if customer.phone %}fab fa-whatsapp{% else %}fas fa-link{% endif %}"></i>
                             </button>
-                            <a href="{% url 'edit_customer' customer.pk %}" class="btn btn-warning btn-circle btn-sm shadow-sm" title="Editar Cliente">
+                            <a href="{% url 'edit_customer' customer.public_id %}" class="btn btn-warning btn-circle btn-sm shadow-sm" title="Editar Cliente">
                                 <i class="fas fa-edit"></i>
                             </a>
-                            <form method="POST" action="{% url 'delete_customer' customer.pk %}" class="d-inline">
+                            <form method="POST" action="{% url 'delete_customer' customer.public_id %}" class="d-inline">
                                 {% csrf_token %}
                                 <button type="submit" class="btn btn-danger btn-circle btn-sm shadow-sm ml-1" title="Eliminar Cliente" onclick="return confirm('¿Estás seguro de eliminar a {{ customer.full_name|escapejs }}? Sus órdenes previas se mantendrán en el sistema.');">
                                     <i class="fas fa-trash"></i>
@@ -124,52 +168,34 @@
 
     </div>
 </div>
-<script>
-    // Función para obtener el CSRF token de las cookies
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
 
+{% block extra_js %}
+<script>
+    // Como ya tienes el CSRF global en base.html, simplifiqué la llamada AJAX 
+    // para que use window.globalCsrfToken y quede más limpio.
+    
     function shareBulkPaymentLink(event, sendUrl, publicLink, phone) {
-        // 1. Siempre copiamos el link al portapapeles como respaldo
         navigator.clipboard.writeText(publicLink).catch(err => console.error("Error copiando al portapapeles: ", err));
 
-        // 2. Evaluamos si el cliente tiene teléfono válido
         if (phone && phone.trim() !== '' && phone !== 'None') {
-            
-            // Cambiamos el icono a un spinner
             const btn = event.currentTarget;
             const originalHtml = btn.innerHTML;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
             btn.disabled = true;
 
-            // 3. Petición silenciosa a Django
             fetch(sendUrl, {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': getCookie('csrftoken'),
+                    'X-CSRFToken': window.globalCsrfToken, // Usando el token global que inyectamos antes
                     'Content-Type': 'application/json'
                 }
             })
             .then(response => response.json())
             .then(data => {
-                // Restauramos el botón
                 btn.innerHTML = originalHtml;
                 btn.disabled = false;
 
                 if (data.success) {
-                    // Opcional: Puedes usar una librería como Toastr o SweetAlert en lugar de un alert feo si lo deseas
                     alert("✅ ¡Estado de cuenta enviado automáticamente por WhatsApp!");
                 } else {
                     alert("⚠️ Link copiado, pero falló el envío: " + data.error);
@@ -181,12 +207,11 @@
                 btn.disabled = false;
                 alert("⚠️ Link copiado. Error de red al intentar enviar el WhatsApp.");
             });
-            
             return;
         }
         
-        // 3. Fallback: Si no hay teléfono
         alert("¡Link de estado de cuenta copiado con éxito! El cliente no tiene teléfono registrado.");
     }
 </script>
+{% endblock %}
 {% endblock %}

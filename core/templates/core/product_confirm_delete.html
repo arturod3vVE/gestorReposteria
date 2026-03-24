@@ -6,7 +6,7 @@
 <div class="row justify-content-center mt-5">
     <div class="col-lg-6">
         <div class="card shadow border-left-danger">
-            <div class="card-body text-center p-5">
+            <div class="card-body text-center p-4 p-sm-5">
                 <i class="fas fa-exclamation-triangle fa-4x text-danger mb-4"></i>
                 <h4 class="font-weight-bold text-gray-800 mb-3">¿Eliminar "{{ product.name }}"?</h4>
                 <p class="text-muted mb-4">
@@ -14,10 +14,14 @@
                     <strong>Esta acción no se puede deshacer.</strong>
                 </p>
                 
-                <form method="POST" class="d-flex justify-content-center">
+                <form method="POST" action="{% url 'delete_product' product.pk %}" class="d-flex flex-column flex-sm-row justify-content-center">
                     {% csrf_token %}
-                    <a href="{% url 'product_list' %}" class="btn btn-secondary mr-2 font-weight-bold">Cancelar</a>
-                    <button type="submit" class="btn btn-danger font-weight-bold">Sí, Eliminar Producto</button>
+                    <a href="{% url 'product_list' %}" class="btn btn-secondary mb-2 mb-sm-0 mr-sm-2 font-weight-bold p-3 p-sm-2">
+                        Cancelar
+                    </a>
+                    <button type="submit" class="btn btn-danger font-weight-bold p-3 p-sm-2">
+                        Sí, Eliminar Producto
+                    </button>
                 </form>
                 
                 <hr class="mt-4">

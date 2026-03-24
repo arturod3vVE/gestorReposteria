@@ -2,15 +2,76 @@
 
 {% block title %}Registro de Ordenes - CrumbCore{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* 📱 MAGIA RESPONSIVE: De Tabla a Tarjetas en Móviles */
+    @media (max-width: 767px) {
+        .table-mobile-cards thead { display: none; }
+        .table-mobile-cards tr { 
+            display: block; 
+            margin-bottom: 1rem; 
+            border: 1px solid #e3e6f0; 
+            border-radius: 0.5rem; 
+            background-color: #fff; 
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075); 
+        }
+        .table-mobile-cards td { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            text-align: right !important; 
+            border-top: none; 
+            border-bottom: 1px solid #f8f9fc; 
+            padding: 0.75rem; 
+        }
+        .table-mobile-cards td:last-child { border-bottom: none; }
+        .table-mobile-cards td::before { 
+            content: attr(data-label); 
+            font-weight: bold; 
+            text-transform: uppercase; 
+            font-size: 0.75rem; 
+            color: #858796; 
+            text-align: left; 
+            margin-right: 15px; 
+        }
+        .table-mobile-cards td.acciones-td {
+            justify-content: flex-end;
+            gap: 5px;
+            flex-wrap: wrap; /* Por si los botones no caben en una línea */
+        }
+        .table-mobile-cards td.acciones-td::before {
+            margin-right: auto;
+        }
+
+        /* Ajustes para el formulario de filtros en móvil */
+        .filtros-movil .form-group {
+            width: 100%;
+            margin-bottom: 15px;
+            justify-content: space-between;
+        }
+        .filtros-movil .form-group select,
+        .filtros-movil .form-group input {
+            width: 60% !important;
+        }
+        .filtros-movil .btn-container {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
-    <h1 class="h3 mb-0 text-gray-800">Registro de Ordenes</h1>
+    <h1 class="h3 mb-3 mb-sm-0 text-gray-800">Registro de Ordenes</h1>
     <div class="d-flex">
         <a href="{% url 'create_order' %}" class="btn btn-sm btn-primary shadow-sm mr-2">
-            <i class="fas fa-plus fa-sm text-white-50"></i> Nueva Orden
+            <i class="fas fa-plus fa-sm text-white-50"></i> <span class="d-none d-sm-inline">Nueva Orden</span><span class="d-inline d-sm-none">Orden</span>
         </a>
         <a href="{% url 'create_customer' %}" class="btn btn-sm btn-secondary shadow-sm">
-            <i class="fas fa-plus fa-sm text-dark"></i> Nuevo Cliente
+            <i class="fas fa-plus fa-sm text-dark"></i> <span class="d-none d-sm-inline">Nuevo Cliente</span><span class="d-inline d-sm-none">Cliente</span>
         </a>
     </div>
 </div>
@@ -25,7 +86,7 @@
 
 <div class="card shadow mb-4">
     <div class="card-body">
-        <form method="GET" class="form-inline">
+        <form method="GET" class="form-inline filtros-movil">
             <div class="form-group mr-3">
                 <label class="mr-2 small font-weight-bold">Entrega:</label>
                 <select name="status" class="form-control form-control-sm">
@@ -64,12 +125,14 @@
                 </div>
             </div>
 
-            <button type="submit" class="btn btn-primary btn-sm shadow-sm">
-                <i class="fas fa-filter fa-sm"></i> Filtrar
-            </button>
-            <a href="{% url 'order_list' %}" class="btn btn-secondary btn-sm shadow-sm ml-2">
-                <i class="fas fa-undo fa-sm text-dark"></i> Limpiar
-            </a>
+            <div class="btn-container">
+                <button type="submit" class="btn btn-primary btn-sm shadow-sm">
+                    <i class="fas fa-filter fa-sm"></i> Filtrar
+                </button>
+                <a href="{% url 'order_list' %}" class="btn btn-secondary btn-sm shadow-sm ml-2">
+                    <i class="fas fa-undo fa-sm text-dark"></i> Limpiar
+                </a>
+            </div>
         </form>
     </div>
 </div>
@@ -80,7 +143,7 @@
     </div>
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-bordered table-hover" id="dataTable" width="100%" cellspacing="0">
+            <table class="table table-bordered table-hover table-mobile-cards" id="dataTable" width="100%" cellspacing="0">
                 <thead class="bg-light">
                     <tr>
                         <th class="text-center">#</th>
@@ -96,32 +159,32 @@
                 <tbody>
                     {% for order in orders %}
                     <tr class="{% if order.status == 'CANCELLED' %}text-muted bg-light{% endif %}">
-                        <td class="align-middle text-center font-weight-bold">#{{ order.id }}</td>
-                        <td class="align-middle">
+                        <td data-label="Orden" class="align-middle text-center font-weight-bold">#{{ order.id }}</td>
+                        <td data-label="Cliente" class="align-middle">
                             <span class="font-weight-bold text-gray-800">{{ order.customer.full_name|default:"Venta de Mostrador" }}</span>
                             {% if order.customer.phone %}<br><small>{{ order.customer.phone }}</small>{% endif %}
                         </td>
-                        <td class="align-middle">
+                        <td data-label="Entrega" class="align-middle">
                             {{ order.expected_delivery_date|date:"d/m/Y" }}<br>
                             <small class="text-muted">{{ order.expected_delivery_date|date:"h:i A" }}</small>
                         </td>
-                        <td class="align-middle text-right font-weight-bold text-gray-800">
+                        <td data-label="Total" class="align-middle text-right font-weight-bold text-gray-800">
                             ${{ order.total_calculated }}
                         </td>
-                        <td class="align-middle text-right font-weight-bold">
+                        <td data-label="Saldo Pendiente" class="align-middle text-right font-weight-bold">
                             {% if order.balance_due_calculated > 0 %}
                                 <span class="text-danger">${{ order.balance_due_calculated }}</span>
                             {% else %}
                                 <span class="text-success">$0.00</span>
                             {% endif %}
                         </td>
-                        <td class="align-middle text-center">
+                        <td data-label="Estado" class="align-middle text-center">
                             <span class="badge badge-{% if order.status == 'DELIVERED' %}success{% elif order.status == 'CANCELLED' %}danger{% else %}warning{% endif %}">
                                 {{ order.get_status_display }}
                             </span>
                         </td>
                         
-                        <td class="align-middle text-center position-relative">
+                        <td data-label="Pago" class="align-middle text-center position-relative">
                             <span class="badge badge-{% if order.payment_status == 'PAID' %}success{% elif order.payment_status == 'PENDING' %}danger{% else %}info{% endif %}">
                                 {{ order.get_payment_status_display }}
                             </span>
@@ -135,17 +198,17 @@
                             {% endif %}
                         </td>
                         
-                        <td class="align-middle text-center">
-                            <a href="{% url 'order_detail' order.id %}" class="btn btn-info btn-circle btn-sm shadow-sm" title="Ver Detalles">
+                        <td data-label="Acciones" class="align-middle text-center acciones-td">
+                            <a href="{% url 'order_detail' order.public_id %}" class="btn btn-info btn-circle btn-sm shadow-sm" title="Ver Detalles">
                                 <i class="fas fa-eye"></i>
                             </a>
 
-                            <a href="{% url 'verify_order_payments' order.pk %}" class="btn btn-{% if order.tiene_pagos_pendientes %}warning{% else %}success{% endif %} btn-circle btn-sm shadow-sm ml-1" title="Verificar Pagos">
+                            <a href="{% url 'verify_order_payments' order.public_id %}" class="btn btn-{% if order.tiene_pagos_pendientes %}warning{% else %}success{% endif %} btn-circle btn-sm shadow-sm ml-1" title="Verificar Pagos">
                                 <i class="fas fa-file-invoice-dollar {% if order.tiene_pagos_pendientes %}text-dark{% endif %}"></i>
                             </a>
 
                             {% if order.status != 'DELIVERED' and order.status != 'CANCELLED' %}
-                            <form method="POST" action="{% url 'update_order_status' order.pk 'DELIVERED' %}" class="d-inline">
+                            <form method="POST" action="{% url 'update_order_status' order.public_id 'DELIVERED' %}" class="d-inline">
                                 {% csrf_token %}
                                 <button type="submit" class="btn btn-primary btn-circle btn-sm shadow-sm ml-1" title="Marcar como Entregada">
                                     <i class="fas fa-box-open"></i>
@@ -154,7 +217,7 @@
                             {% endif %}
 
                             {% if order.status != 'CANCELLED' %}
-                            <form method="POST" action="{% url 'update_order_status' order.pk 'CANCELLED' %}" class="d-inline">
+                            <form method="POST" action="{% url 'update_order_status' order.public_id 'CANCELLED' %}" class="d-inline">
                                 {% csrf_token %}
                                 <button type="submit" class="btn btn-danger btn-circle btn-sm shadow-sm ml-1" title="Cancelar Orden" onclick="return confirm('¿Estás seguro de cancelar esta orden? El stock regresará automáticamente a la vitrina.');">
                                     <i class="fas fa-ban"></i>
@@ -172,35 +235,35 @@
 
         {% if orders.has_other_pages %}
         <nav aria-label="Navegación de órdenes" class="mt-4">
-            <ul class="pagination justify-content-center">
+            <ul class="pagination justify-content-center flex-wrap">
                 {% if orders.has_previous %}
-                    <li class="page-item">
+                    <li class="page-item mb-2">
                         <a class="page-link shadow-sm" href="?page={{ orders.previous_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_payment_status %}&payment_status={{ current_payment_status }}{% endif %}{% if current_start %}&start_date={{ current_start }}{% endif %}{% if current_end %}&end_date={{ current_end }}{% endif %}{% if current_pending %}&pending_payments={{ current_pending }}{% endif %}">
                             <i class="fas fa-chevron-left"></i> Anterior
                         </a>
                     </li>
                 {% else %}
-                    <li class="page-item disabled"><span class="page-link text-muted"><i class="fas fa-chevron-left"></i> Anterior</span></li>
+                    <li class="page-item disabled mb-2"><span class="page-link text-muted"><i class="fas fa-chevron-left"></i> Anterior</span></li>
                 {% endif %}
 
                 {% for i in orders.paginator.page_range %}
                     {% if orders.number == i %}
-                        <li class="page-item active shadow-sm"><span class="page-link">{{ i }}</span></li>
+                        <li class="page-item active shadow-sm mb-2"><span class="page-link">{{ i }}</span></li>
                     {% else %}
-                        <li class="page-item">
+                        <li class="page-item mb-2">
                             <a class="page-link shadow-sm" href="?page={{ i }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_payment_status %}&payment_status={{ current_payment_status }}{% endif %}{% if current_start %}&start_date={{ current_start }}{% endif %}{% if current_end %}&end_date={{ current_end }}{% endif %}{% if current_pending %}&pending_payments={{ current_pending }}{% endif %}">{{ i }}</a>
                         </li>
                     {% endif %}
                 {% endfor %}
 
                 {% if orders.has_next %}
-                    <li class="page-item">
+                    <li class="page-item mb-2">
                         <a class="page-link shadow-sm" href="?page={{ orders.next_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_payment_status %}&payment_status={{ current_payment_status }}{% endif %}{% if current_start %}&start_date={{ current_start }}{% endif %}{% if current_end %}&end_date={{ current_end }}{% endif %}{% if current_pending %}&pending_payments={{ current_pending }}{% endif %}">
                             Siguiente <i class="fas fa-chevron-right"></i>
                         </a>
                     </li>
                 {% else %}
-                    <li class="page-item disabled"><span class="page-link text-muted">Siguiente <i class="fas fa-chevron-right"></i></span></li>
+                    <li class="page-item disabled mb-2"><span class="page-link text-muted">Siguiente <i class="fas fa-chevron-right"></i></span></li>
                 {% endif %}
             </ul>
         </nav>

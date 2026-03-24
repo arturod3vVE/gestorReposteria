@@ -3,10 +3,12 @@
 {% block title %}Nuevo Pedido - CrumbCore{% endblock %}
 
 {% block content %}
-<div class="d-sm-flex align-items-center justify-content-between mb-4">
+<div class="d-flex align-items-center justify-content-between mb-4">
     <h1 class="h3 mb-0 text-gray-800">Registrar Nuevo Pedido</h1>
-    <a href="{% url 'order_list' %}" class="d-none d-sm-inline-block btn btn-sm btn-secondary shadow-sm">
-        <i class="fas fa-arrow-left fa-sm text-white-50"></i> Volver al Registro
+    <a href="{% url 'order_list' %}" class="btn btn-sm btn-secondary shadow-sm">
+        <i class="fas fa-arrow-left fa-sm text-white-50"></i> 
+        <span class="d-none d-sm-inline">Volver al Registro</span>
+        <span class="d-inline d-sm-none">Volver</span>
     </a>
 </div>
 
@@ -76,20 +78,20 @@
                 <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
                     <h6 class="m-0 font-weight-bold text-primary">Productos Solicitados</h6>
                     <button type="button" class="btn btn-sm btn-success" id="add-product-btn">
-                        <i class="fas fa-plus"></i> Añadir Producto
+                        <i class="fas fa-plus"></i> <span class="d-none d-sm-inline">Añadir Producto</span>
                     </button>
                 </div>
-                <div class="card-body" id="order-container">
+                <div class="card-body px-2 px-sm-3" id="order-container">
                     
-                    <div class="row order-row mb-2" id="empty-row" style="display: none;">
-                        <div class="col-8">
-                            <select name="product_id[]" class="form-control" disabled>
-                                <option value="" disabled selected>Selecciona un producto...</option>
+                    <div class="row order-row mb-2 px-1" id="empty-row" style="display: none;">
+                        <div class="col-7 col-sm-8 px-1">
+                            <select name="product_id[]" class="form-control form-control-sm" disabled>
+                                <option value="" disabled selected>Seleccionar...</option>
                                 {% for prod in products %}
                                     <option value="{{ prod.id }}">
                                         {{ prod.name }} - ${{ prod.sale_price }}
                                         {% if prod.track_stock %}
-                                            (Quedan: {{ prod.stock_quantity }})
+                                            ({{ prod.stock_quantity }} unid.)
                                         {% else %}
                                             (Bajo Pedido)
                                         {% endif %}
@@ -97,23 +99,23 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-3">
-                            <input type="number" min="1" step="1" name="quantity[]" class="form-control" placeholder="Cant." disabled>
+                        <div class="col-3 px-1">
+                            <input type="number" min="1" step="1" name="quantity[]" class="form-control form-control-sm" placeholder="Cant." disabled>
                         </div>
-                        <div class="col-1 text-right">
-                            <button type="button" class="btn btn-danger btn-sm remove-row-btn"><i class="fas fa-times"></i></button>
+                        <div class="col-2 col-sm-1 px-1 text-right">
+                            <button type="button" class="btn btn-danger btn-sm remove-row-btn w-100"><i class="fas fa-times"></i></button>
                         </div>
                     </div>
 
-                    <div class="row order-row mb-2">
-                        <div class="col-8">
-                            <select name="product_id[]" class="form-control" required>
-                                <option value="" disabled selected>Selecciona un producto...</option>
+                    <div class="row order-row mb-2 px-1">
+                        <div class="col-7 col-sm-8 px-1">
+                            <select name="product_id[]" class="form-control form-control-sm" required>
+                                <option value="" disabled selected>Seleccionar...</option>
                                 {% for prod in products %}
                                     <option value="{{ prod.id }}">
                                         {{ prod.name }} - ${{ prod.sale_price }}
                                         {% if prod.track_stock %}
-                                            (Quedan: {{ prod.stock_quantity }})
+                                            ({{ prod.stock_quantity }} unid.)
                                         {% else %}
                                             (Bajo Pedido)
                                         {% endif %}
@@ -121,18 +123,18 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-3">
-                            <input type="number" min="1" step="1" name="quantity[]" class="form-control" placeholder="Cant." required value="1">
+                        <div class="col-3 px-1">
+                            <input type="number" min="1" step="1" name="quantity[]" class="form-control form-control-sm" placeholder="Cant." required value="1">
                         </div>
-                        <div class="col-1 text-right">
-                            <button type="button" class="btn btn-danger btn-sm remove-row-btn" disabled><i class="fas fa-times"></i></button>
+                        <div class="col-2 col-sm-1 px-1 text-right">
+                            <button type="button" class="btn btn-danger btn-sm remove-row-btn w-100" disabled><i class="fas fa-times"></i></button>
                         </div>
                     </div>
                     
                 </div>
             </div>
             
-            <button type="submit" class="btn btn-primary btn-block btn-lg shadow-sm">
+            <button type="submit" class="btn btn-primary btn-block btn-lg shadow-sm font-weight-bold p-3 mb-4">
                 <i class="fas fa-check-circle"></i> Confirmar Pedido
             </button>
         </div>
@@ -153,6 +155,7 @@
             
             const selectField = newRow.querySelector('select');
             const inputField = newRow.querySelector('input');
+            const deleteBtn = newRow.querySelector('.remove-row-btn');
             
             selectField.removeAttribute('disabled');
             selectField.setAttribute('required', 'required');
@@ -160,6 +163,9 @@
             inputField.removeAttribute('disabled');
             inputField.setAttribute('required', 'required');
             inputField.value = '1';
+            
+            // Habilitamos el botón de borrar para la fila clonada
+            deleteBtn.removeAttribute('disabled');
 
             container.appendChild(newRow);
         });
@@ -167,8 +173,12 @@
         container.addEventListener('click', function(e) {
             if (e.target.closest('.remove-row-btn')) {
                 const row = e.target.closest('.order-row');
-                if (row.id !== 'empty-row') {
+                // No permitimos borrar la primera fila visible (la que no es el molde oculto) si es la única
+                const visibleRows = container.querySelectorAll('.order-row:not(#empty-row)');
+                if (row.id !== 'empty-row' && visibleRows.length > 1) {
                     row.remove();
+                } else if (visibleRows.length === 1) {
+                    alert("Debes incluir al menos un producto en la orden.");
                 }
             }
         });

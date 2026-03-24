@@ -12,7 +12,7 @@ from datetime import timedelta
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages 
-from django.contrib.auth.decorators import user_passes_test
+from django.contrib.auth.decorators import user_passes_test, login_required
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
@@ -22,30 +22,28 @@ from django.views.decorators.http import require_POST
 from django.conf import settings
 from django.urls import reverse
 
-@user_passes_test(lambda u: u.is_staff)
+@login_required
 def dashboard(request):
     hoy = timezone.now().date()
     mes_actual = hoy.month
     anio_actual = hoy.year
+    user = request.user
     
-    # 1. MÉTRICAS FINANCIERAS PRINCIPALES
-    ventas_hoy = Order.objects.filter(created_at__date=hoy).aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
-    ventas_mes = Order.objects.filter(created_at__month=mes_actual, created_at__year=anio_actual).aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+    ventas_hoy = Order.objects.filter(user=user, created_at__date=hoy).aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+    ventas_mes = Order.objects.filter(user=user, created_at__month=mes_actual, created_at__year=anio_actual).aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
     
-    total_facturado = Order.objects.aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
-    total_pagado = Payment.objects.filter(is_verified=True).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    total_facturado = Order.objects.filter(user=user).aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+    
+    total_pagado = Payment.objects.filter(order__user=user, is_verified=True).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
     deuda_total = total_facturado - total_pagado
     
-    # 2. MÉTRICAS OPERATIVAS
-    entregas_hoy_count = Order.objects.filter(expected_delivery_date__date=hoy, status__in=['PENDING', 'PREPARING']).count()
-    pagos_por_verificar = Payment.objects.filter(is_verified=False).count()
+    entregas_hoy_count = Order.objects.filter(user=user, expected_delivery_date__date=hoy, status__in=['PENDING', 'PREPARING']).count()
+    pagos_por_verificar = Payment.objects.filter(order__user=user, is_verified=False).count()
     
-    # Tasa del día
-    ultima_tasa = ExchangeRate.objects.order_by('-created_at').first()
+    ultima_tasa = ExchangeRate.objects.filter(user=user).order_by('-created_at').first()
     tasa_dia = ultima_tasa.rate if ultima_tasa else Decimal('1.00')
 
-    # 3. CLIENTES DEUDORES (Top 5 con mayor deuda)
-    ordenes_pendientes = Order.objects.exclude(payment_status='PAID').select_related('customer')
+    ordenes_pendientes = Order.objects.filter(user=user).exclude(payment_status='PAID').select_related('customer')
     deudores = []
     for order in ordenes_pendientes:
         if order.balance_due_calculated > 0:
@@ -54,20 +52,19 @@ def dashboard(request):
                 'telefono': order.customer.phone if order.customer else '',
                 'monto': order.balance_due_calculated,
                 'fecha_entrega': order.expected_delivery_date,
-                'id': order.id,
-                'customer_id': order.customer.id if order.customer else None,
+                'public_id': order.public_id,
+                'customer_public_id': order.customer.public_id if order.customer else None,
             })
     deudores = sorted(deudores, key=lambda x: x['monto'], reverse=True)[:5]
 
-    # 4. PRÓXIMAS ENTREGAS (Próximas 48 horas)
     proximas_entregas = Order.objects.filter(
+        user=user,
         expected_delivery_date__date__gte=hoy,
         status__in=['PENDING', 'PREPARING']
     ).select_related('customer').order_by('expected_delivery_date')[:5]
 
-    # 5. ALERTAS DE STOCK (Ingredientes < 5 y Productos Terminados < 5)
-    alertas_stock_ing = Ingredient.objects.filter(track_stock=True, stock_quantity__lt=5).order_by('stock_quantity')
-    alertas_stock_prod = Product.objects.filter(track_stock=True, stock_quantity__lt=5).order_by('stock_quantity')
+    alertas_stock_ing = Ingredient.objects.filter(user=user, track_stock=True, stock_quantity__lt=5).order_by('stock_quantity')
+    alertas_stock_prod = Product.objects.filter(user=user, track_stock=True, stock_quantity__lt=5).order_by('stock_quantity')
 
     context = {
         'ventas_hoy': ventas_hoy,
@@ -84,30 +81,25 @@ def dashboard(request):
     
     return render(request, 'core/dashboard.html', context)
 
-@user_passes_test(lambda u: u.is_staff)
+
+@login_required
 def ingredient_list(request):
-    # Obtenemos todos los ingredientes ordenados alfabéticamente
-    ingredients = Ingredient.objects.all().order_by('name')
+    ingredients = Ingredient.objects.filter(user=request.user).order_by('name')
     
-    # Preparamos el contexto para enviarlo a la plantilla
     context = {
         'ingredients': ingredients
     }
-    
-    # Renderizamos la plantilla con el contexto
     return render(request, 'core/ingredient_list.html', context)
 
-@user_passes_test(lambda u: u.is_staff)
+
+@login_required
 def create_ingredient(request):
     if request.method == 'POST':
-        # 1. Capturar los datos básicos
         name = request.POST.get('name')
         measurement_unit = request.POST.get('measurement_unit')
         
-        # Convertimos directamente a Decimal (el frontend ya valida que vengan números)
         cost_per_unit = Decimal(request.POST.get('cost_per_unit', '0'))
         
-        # 2. Verificar el slider de stock
         track_stock = request.POST.get('track_stock') == 'on'
         
         if track_stock:
@@ -116,8 +108,8 @@ def create_ingredient(request):
         else:
             stock_quantity = Decimal('0.00')
 
-        # 3. Crear el Ingrediente en la base de datos
         Ingredient.objects.create(
+            user=request.user, 
             name=name,
             measurement_unit=measurement_unit,
             track_stock=track_stock,
@@ -125,29 +117,23 @@ def create_ingredient(request):
             stock_quantity=stock_quantity
         )
 
-        # 4. Redirigir a la lista de ingredientes
         return redirect('ingredient_list')
 
-    # GET: Pasamos las opciones de unidad de medida al select
     context = {
         'unidades': Ingredient.MEASUREMENT_UNITS
     }
 
     return render(request, 'core/ingredient_form.html', context)
 
-@user_passes_test(lambda u: u.is_staff)
+@login_required
 def edit_ingredient(request, pk):
-    ingredient = get_object_or_404(Ingredient, pk=pk)
+    ingredient = get_object_or_404(Ingredient, pk=pk, user=request.user)
 
     if request.method == 'POST':
         ingredient.name = request.POST.get('name')
         ingredient.measurement_unit = request.POST.get('measurement_unit')
-        
-        # Parseo seguro de decimales
         cost_str = request.POST.get('cost_per_unit', '0').replace(',', '.')
         ingredient.cost_per_unit = Decimal(cost_str)
-        
-        # Manejo del stock
         ingredient.track_stock = request.POST.get('track_stock') == 'on'
         if ingredient.track_stock:
             stock_str = request.POST.get('stock_quantity', '0').replace(',', '.')
@@ -164,9 +150,10 @@ def edit_ingredient(request, pk):
     }
     return render(request, 'core/ingredient_edit.html', context)
 
-@user_passes_test(lambda u: u.is_staff)
+
+@login_required
 def delete_ingredient(request, pk):
-    ingredient = get_object_or_404(Ingredient, pk=pk)
+    ingredient = get_object_or_404(Ingredient, pk=pk, user=request.user)
     
     if request.method == 'POST':
         try:
@@ -180,9 +167,10 @@ def delete_ingredient(request, pk):
             
     return render(request, 'core/ingredient_confirm_delete.html', {'ingredient': ingredient})
 
-@user_passes_test(lambda u: u.is_staff)
+
+@login_required
 def product_list(request):
-    products = Product.objects.select_related('category').prefetch_related(
+    products = Product.objects.filter(user=request.user).select_related('category').prefetch_related(
         'recipe_items__ingredient'
     ).order_by('name')
     
@@ -192,14 +180,13 @@ def product_list(request):
     
     return render(request, 'core/product_list.html', context)
 
-@user_passes_test(lambda u: u.is_staff)
+
+@login_required
 def create_product(request):
-    categories = Category.objects.all().order_by('name')
-    # Necesitamos enviarle los ingredientes a la vista para el selector
-    ingredients = Ingredient.objects.all().order_by('name')
+    categories = Category.objects.filter(user=request.user).order_by('name')
+    ingredients = Ingredient.objects.filter(user=request.user).order_by('name')
 
     if request.method == 'POST':
-        # 1. Crear el Producto Base
         name = request.POST.get('name')
         category_id = request.POST.get('category')
         description = request.POST.get('description', '')
@@ -210,9 +197,10 @@ def create_product(request):
         track_stock = request.POST.get('track_stock') == 'on'
         stock_quantity = int(request.POST.get('stock_quantity', '0')) if track_stock else 0
 
-        category_obj = get_object_or_404(Category, id=category_id)
+        category_obj = get_object_or_404(Category, id=category_id, user=request.user)
 
         product = Product.objects.create(
+            user=request.user,
             name=name,
             category=category_obj,
             description=description,
@@ -223,15 +211,12 @@ def create_product(request):
             stock_quantity=stock_quantity,
         )
 
-        # 2. Capturar las listas de ingredientes del frontend
         ingredient_ids = request.POST.getlist('ingredient_id[]')
         quantities = request.POST.getlist('quantity_required[]')
 
-        # 3. Procesar y guardar cada ítem de la receta
         for i in range(len(ingredient_ids)):
-            # Validamos que no vengan campos vacíos
             if ingredient_ids[i] and quantities[i]:
-                ing_obj = get_object_or_404(Ingredient, id=ingredient_ids[i])
+                ing_obj = get_object_or_404(Ingredient, id=ingredient_ids[i], user=request.user)
                 
                 RecipeItem.objects.create(
                     product=product,
@@ -247,14 +232,14 @@ def create_product(request):
     }
     return render(request, 'core/product_form.html', context)
 
-@user_passes_test(lambda u: u.is_staff)
+@login_required
 def create_category(request):
     if request.method == 'POST':
         name = request.POST.get('name')
         description = request.POST.get('description', '')
 
-        # Creamos la categoría
         Category.objects.create(
+            user=request.user, 
             name=name,
             description=description
         )
@@ -263,36 +248,30 @@ def create_category(request):
 
     return render(request, 'core/category_form.html')
 
-@user_passes_test(lambda u: u.is_staff)
+
+@login_required
 def order_list(request):
-    # 1. Captura de filtros desde el navegador
     status_filter = request.GET.get('status')
-    payment_status_filter = request.GET.get('payment_status') # <-- NUEVO
+    payment_status_filter = request.GET.get('payment_status')
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
     pending_payments_filter = request.GET.get('pending_payments') 
 
-    # Subconsulta para pagos por verificar (el checkbox de "hay recibos pendientes")
     pagos_pendientes_subquery = Payment.objects.filter(
         order=OuterRef('pk'),
         is_verified=False
     )
 
-    # Query inicial optimizada
-    orders_list = Order.objects.select_related('customer').prefetch_related(
+    orders_list = Order.objects.filter(user=request.user).select_related('customer').prefetch_related(
         'items__product', 
         'payments'
     ).annotate(
         tiene_pagos_pendientes=Exists(pagos_pendientes_subquery)
     ).order_by('-created_at')
 
-    # 2. Aplicación de lógica de filtrado
-    
-    # Filtro de Estatus de Entrega
     if status_filter:
         orders_list = orders_list.filter(status=status_filter)
     
-    # Filtro de Estatus de Pago (NUEVO)
     if payment_status_filter:
         orders_list = orders_list.filter(payment_status=payment_status_filter)
     
@@ -305,7 +284,6 @@ def order_list(request):
     if pending_payments_filter == 'yes':
         orders_list = orders_list.filter(tiene_pagos_pendientes=True)
 
-    # 3. Configuración del Paginador
     paginator = Paginator(orders_list, 10)
     page = request.GET.get('page')
 
@@ -319,9 +297,9 @@ def order_list(request):
     context = {
         'orders': orders,
         'status_choices': Order.ORDER_STATUS, 
-        'payment_status_choices': Order.PAYMENT_STATUS, # <-- NUEVO
+        'payment_status_choices': Order.PAYMENT_STATUS,
         'current_status': status_filter,
-        'current_payment_status': payment_status_filter, # <-- NUEVO
+        'current_payment_status': payment_status_filter,
         'current_start': start_date,
         'current_end': end_date,
         'current_pending': pending_payments_filter,
@@ -329,16 +307,16 @@ def order_list(request):
     
     return render(request, 'core/order_list.html', context)
 
-@user_passes_test(lambda u: u.is_staff)
+
+@login_required
 def create_order(request):
-    customers = Customer.objects.all().order_by('full_name')
-    products = Product.objects.filter(is_available=True).order_by('name')
+    customers = Customer.objects.filter(user=request.user).order_by('full_name')
+    products = Product.objects.filter(user=request.user, is_available=True).order_by('name')
 
     if request.method == 'POST':
         product_ids = request.POST.getlist('product_id[]') or request.POST.getlist('product_id')
         quantities = request.POST.getlist('quantity[]') or request.POST.getlist('quantity')
 
-        # --- 1. FASE DE VALIDACIÓN ESTRICTA (PRE-FLIGHT CHECK) ---
         requested_qtys = {}
         for i in range(len(product_ids)):
             if product_ids[i] and quantities[i]:
@@ -348,7 +326,7 @@ def create_order(request):
 
         has_errors = False
         for pid, total_qty in requested_qtys.items():
-            prod_obj = get_object_or_404(Product, id=pid)
+            prod_obj = get_object_or_404(Product, id=pid, user=request.user)
             if prod_obj.track_stock and total_qty > prod_obj.stock_quantity:
                 messages.error(request, f'¡Stock insuficiente! Solicitaste {total_qty} unidades de "{prod_obj.name}", pero solo quedan {prod_obj.stock_quantity} disponibles.')
                 has_errors = True
@@ -356,23 +334,20 @@ def create_order(request):
         if has_errors:
             return redirect('create_order')
 
-        # --- 2. CAPTURA DE DATOS Y CORRECCIÓN DE FECHA ---
         customer_id = request.POST.get('customer')
         expected_delivery_date_str = request.POST.get('expected_delivery_date')
         special_notes = request.POST.get('special_notes', '')
         status = request.POST.get('status', 'PENDING')
 
-        # Convertimos el string de la fecha a un objeto aware (con zona horaria)
-        # para evitar el RuntimeWarning en Render
         expected_delivery_date = None
         if expected_delivery_date_str:
             naive_datetime = datetime.strptime(expected_delivery_date_str, '%Y-%m-%dT%H:%M')
             expected_delivery_date = timezone.make_aware(naive_datetime)
 
-        customer_obj = get_object_or_404(Customer, id=customer_id) if customer_id else None
+        customer_obj = get_object_or_404(Customer, id=customer_id, user=request.user) if customer_id else None
 
-        # Creamos la orden
         order = Order.objects.create(
+            user=request.user,
             customer=customer_obj,
             expected_delivery_date=expected_delivery_date,
             special_notes=special_notes,
@@ -381,10 +356,9 @@ def create_order(request):
 
         total_amount = Decimal('0.00')
 
-        # --- 3. GUARDAMOS CADA ITEM ---
         for i in range(len(product_ids)):
             if product_ids[i] and quantities[i]:
-                prod_obj = get_object_or_404(Product, id=product_ids[i])
+                prod_obj = Product.objects.get(id=product_ids[i], user=request.user)
                 qty = int(quantities[i])
                 
                 item = OrderItem(
@@ -397,23 +371,18 @@ def create_order(request):
 
                 total_amount += (item.unit_price * Decimal(qty))
 
-        # Actualizamos el total final de la orden
         order.total_amount = total_amount
         order.save()
 
-        # --- 4. INTEGRACIÓN CON WHATSAPP ---
         if order.customer and order.customer.phone:
-            # Construimos el link de pago público
-            ruta_relativa = reverse('public_payment_link', args=[order.pk])
+            ruta_relativa = reverse('public_payment_link', args=[order.public_id])
             link_pago = request.build_absolute_uri(ruta_relativa)
             
-            # Construimos el detalle de productos usando 'items' (related_name)
             detalle_productos = ""
             for item in order.items.all():
                 subtotal = item.quantity * item.unit_price
                 detalle_productos += f"▫️ {item.quantity}x {item.product.name} = ${subtotal}\n"
 
-            # Armamos el mensaje final
             mensaje = (
                 f"¡Hola {order.customer.full_name}! 👋\n\n"
                 f"Tu orden #{order.id} ha sido registrada con éxito.\n\n"
@@ -424,8 +393,6 @@ def create_order(request):
                 f"{link_pago}\n\n"
                 f"¡Gracias por preferirnos! 🍪"
             )
-            
-            # Enviamos al microservicio en segundo plano
             enviar_whatsapp_background(order.customer.phone, mensaje)
 
         messages.success(request, f'Orden #{order.id} creada exitosamente.')
@@ -437,27 +404,22 @@ def create_order(request):
     }
     return render(request, 'core/order_form.html', context)
 
-@user_passes_test(lambda u: u.is_staff)
-def update_order_status(request, pk, new_status):
+@login_required
+def update_order_status(request, public_id, new_status):
     if request.method == 'POST':
-        order = get_object_or_404(Order, pk=pk)
+        order = get_object_or_404(Order, public_id=public_id, user=request.user)
         
-        # --- NUEVO CANDADO DE SEGURIDAD PARA CANCELACIONES ---
         if new_status == 'CANCELLED':
-            # Solo permitimos cancelar si está en su estado inicial puro
             if order.status != 'PENDING' or order.payment_status != 'PENDING':
                 messages.error(request, f'No puedes cancelar la Orden #{order.id} porque ya tiene pagos registrados o ya ha sido entregada.')
                 return redirect(request.META.get('HTTP_REFERER', 'order_list'))
-        # -----------------------------------------------------
 
-        # LÓGICA DE INVENTARIO: Si se cancela, devolvemos el stock a la vitrina
         if new_status == 'CANCELLED' and order.status != 'CANCELLED':
             for item in order.items.all():
                 if item.product.track_stock:
                     item.product.stock_quantity += item.quantity
                     item.product.save()
                     
-        # Si se "descancela", volvemos a restar el stock
         elif order.status == 'CANCELLED' and new_status != 'CANCELLED':
             for item in order.items.all():
                 if item.product.track_stock:
@@ -470,17 +432,16 @@ def update_order_status(request, pk, new_status):
         
     return redirect(request.META.get('HTTP_REFERER', 'order_list'))
 
-@user_passes_test(lambda u: u.is_staff)
+@login_required
 def create_customer(request):
     if request.method == 'POST':
-        # Captura manual de los campos del modelo
         full_name = request.POST.get('full_name')
         phone = request.POST.get('phone')
         email = request.POST.get('email')
         delivery_address = request.POST.get('delivery_address')
 
-        # Creación del registro en la base de datos
         Customer.objects.create(
+            user=request.user,
             full_name=full_name,
             phone=phone,
             email=email,
@@ -491,12 +452,11 @@ def create_customer(request):
 
     return render(request, 'core/customer_form.html')
 
-@user_passes_test(lambda u: u.is_staff)
+@login_required
 def customer_list(request):
     search_query = request.GET.get('search', '')
     
-    # Traemos los clientes y contamos cuántas órdenes tiene cada uno
-    customers_qs = Customer.objects.annotate(
+    customers_qs = Customer.objects.filter(user=request.user).annotate(
         total_orders=Count('orders')
     ).order_by('full_name')
 
@@ -519,9 +479,9 @@ def customer_list(request):
     }
     return render(request, 'core/customer_list.html', context)
 
-@user_passes_test(lambda u: u.is_staff)
-def edit_customer(request, pk):
-    customer = get_object_or_404(Customer, pk=pk)
+@login_required
+def edit_customer(request, public_id):
+    customer = get_object_or_404(Customer, public_id=public_id, user=request.user)
     
     if request.method == 'POST':
         customer.full_name = request.POST.get('full_name')
@@ -535,43 +495,45 @@ def edit_customer(request, pk):
         
     return render(request, 'core/customer_edit.html', {'customer': customer})
 
-@user_passes_test(lambda u: u.is_staff)
-def delete_customer(request, pk):
-    customer = get_object_or_404(Customer, pk=pk)
+@login_required
+def delete_customer(request, public_id):
+    customer = get_object_or_404(Customer, public_id=public_id, user=request.user)
+    
     if request.method == 'POST':
         name = customer.full_name
         customer.delete()
         messages.warning(request, f'El cliente "{name}" ha sido eliminado del directorio. Sus órdenes anteriores se mantendrán en el registro.')
     return redirect('customer_list')
 
-@user_passes_test(lambda u: u.is_staff)
+@login_required
 def manage_exchange_rate(request):
     if request.method == 'POST':
         nueva_tasa = request.POST.get('rate')
         if nueva_tasa:
-            ExchangeRate.objects.create(rate=Decimal(nueva_tasa))
+            ExchangeRate.objects.create(
+                user=request.user,
+                rate=Decimal(nueva_tasa.replace(',', '.')) 
+            )
         return redirect('dashboard')
 
-    # Obtenemos las últimas 10 tasas para el histórico
-    history = ExchangeRate.objects.all().order_by('-created_at')[:10]
+    history = ExchangeRate.objects.filter(user=request.user).order_by('-created_at')[:10]
     
     return render(request, 'core/exchange_rate_form.html', {'history': history})
 
-@user_passes_test(lambda u: u.is_staff)
-def order_detail(request, pk):
+@login_required
+def order_detail(request, public_id):
     order = get_object_or_404(
         Order.objects.select_related('customer').prefetch_related(
             'items__product', 
             'payments'
         ), 
-        pk=pk
+        public_id=public_id,
+        user=request.user
     )
     
-    # Obtenemos la última tasa registrada (Si no hay, usamos 1.00 por defecto)
-    ultima_tasa = ExchangeRate.objects.order_by('-created_at').first()
+    ultima_tasa = ExchangeRate.objects.filter(user=request.user).order_by('-created_at').first()
     tasa_dia = ultima_tasa.rate if ultima_tasa else Decimal('1.00')
 
-    # Calculamos los equivalentes en Bolívares para la vista
     total_bs = round(order.total_calculated * tasa_dia, 2)
     balance_bs = round(order.balance_due_calculated * tasa_dia, 2)
     
@@ -584,17 +546,18 @@ def order_detail(request, pk):
     
     return render(request, 'core/order_detail.html', context)
 
-def order_invoice(request, pk):
+@login_required
+def order_invoice(request, public_id):
     order = get_object_or_404(
         Order.objects.select_related('customer').prefetch_related(
             'items__product', 
             'payments'
         ), 
-        pk=pk
+        public_id=public_id,
+        user=request.user
     )
     
-    # Obtenemos la tasa para los cálculos en Bs.
-    ultima_tasa = ExchangeRate.objects.order_by('-created_at').first()
+    ultima_tasa = ExchangeRate.objects.filter(user=request.user).order_by('-created_at').first()
     tasa_dia = ultima_tasa.rate if ultima_tasa else Decimal('1.00')
 
     total_bs = round(order.total_calculated * tasa_dia, 2)
@@ -609,20 +572,20 @@ def order_invoice(request, pk):
     
     return render(request, 'core/order_invoice.html', context)
 
-def public_payment_link(request, pk):
-    order = get_object_or_404(Order, pk=pk)
+
+def public_payment_link(request, public_id):
+    order = get_object_or_404(Order, public_id=public_id)
+    tenant = order.user
     
-    # 1. Variables estrictamente necesarias para AMBOS flujos (GET y POST)
     amount_pending = order.amount_pending
     max_reportable = order.balance_due_calculated - Decimal(amount_pending)
     if max_reportable < 0:
         max_reportable = Decimal('0.00')
 
-    # 2. FLUJO POST (Procesamiento de datos)
     if request.method == 'POST':
         if order.status == 'CANCELLED':
             messages.error(request, 'Acción denegada: Esta orden ha sido cancelada y no admite nuevos pagos.')
-            return redirect('public_payment_link', pk=order.pk)
+            return redirect('public_payment_link', public_id=order.public_id)
 
         if max_reportable > 0:
             amount_str = request.POST.get('amount')
@@ -630,21 +593,17 @@ def public_payment_link(request, pk):
             reference_number = request.POST.get('reference_number')
             receipt_file = request.FILES.get('receipt')
             
-            # Rescatamos el ID de la cuenta destino seleccionada
             destination_id = request.POST.get('destination_id')
             destination_obj = None
             if destination_id:
-                destination_obj = PaymentDestination.objects.filter(id=destination_id).first()
+                destination_obj = PaymentDestination.objects.filter(id=destination_id, user=tenant).first()
 
             client_amount = Decimal(amount_str)
             if client_amount > max_reportable:
                 client_amount = max_reportable
 
-            # 🛡️ EL CANDADO ANTI-DUPLICADOS (Idempotencia)
-            # Calculamos la hora exacta de hace 2 minutos
             tiempo_limite = timezone.now() - timedelta(minutes=2)
             
-            # Buscamos si ya existe un registro idéntico súper reciente
             es_duplicado = Payment.objects.filter(
                 order=order,
                 amount=client_amount,
@@ -653,11 +612,8 @@ def public_payment_link(request, pk):
             ).exists()
 
             if es_duplicado:
-                # Si es un doble envío fantasma, lo ignoramos por completo.
-                # Redirigimos al usuario para que crea que todo salió bien en su "primer" clic.
-                return redirect('public_payment_link', pk=order.pk)
+                return redirect('public_payment_link', public_id=order.public_id)
 
-            # Si pasa el filtro, creamos el pago normalmente
             new_payment = Payment.objects.create(
                 order=order,
                 payment_method=payment_method,
@@ -668,20 +624,18 @@ def public_payment_link(request, pk):
                 is_verified=False 
             )
             
-            # Disparamos el evento asíncrono a Telegram
             send_telegram_receipt_async(new_payment, new_payment.amount, is_bulk=False)
             
             messages.success(request, '¡Tu pago ha sido reportado exitosamente! Lo verificaremos en breve.')
-            return redirect('public_payment_link', pk=order.pk)
+            return redirect('public_payment_link', public_id=order.public_id)
             
-    # 3. FLUJO GET (Solo se ejecuta si no fue un POST. Aquí usamos tus variables)
-    ultima_tasa = ExchangeRate.objects.order_by('-created_at').first()
+    ultima_tasa = ExchangeRate.objects.filter(user=tenant).order_by('-created_at').first()
     tasa_dia = ultima_tasa.rate if ultima_tasa else Decimal('1.00')
 
     balance_bs = round(order.balance_due_calculated * tasa_dia, 2)
     max_reportable_bs = round(max_reportable * tasa_dia, 2)
 
-    destinations = PaymentDestination.objects.filter(is_active=True).order_by('destination_type')
+    destinations = PaymentDestination.objects.filter(user=tenant, is_active=True).order_by('destination_type')
 
     context = {
         'order': order,
@@ -694,10 +648,10 @@ def public_payment_link(request, pk):
     }
     return render(request, 'core/public_payment.html', context)
 
-def customer_bulk_payment(request, customer_id):
-    customer = get_object_or_404(Customer, id=customer_id)
+def customer_bulk_payment(request, public_id):
+    customer = get_object_or_404(Customer, public_id=public_id)
+    tenant = customer.user 
     
-    # 1. Obtenemos órdenes con deuda pendiente
     pending_orders = Order.objects.filter(
         customer=customer, 
         status__in=['PENDING', 'PREPARING', 'DELIVERED']
@@ -705,26 +659,28 @@ def customer_bulk_payment(request, customer_id):
 
     orders_with_debt = [order for order in pending_orders if order.balance_due_calculated > 0]
     
-    # 2. Cálculos Financieros Consolidados
     total_debt = sum(order.balance_due_calculated for order in orders_with_debt)
-    total_pending = sum(order.amount_pending for order in orders_with_debt) # Dinero en revisión
+    total_pending = sum(order.amount_pending for order in orders_with_debt)
     
-    # Lo que realmente se le permite reportar al cliente
     max_reportable = total_debt - total_pending
     if max_reportable < 0:
         max_reportable = Decimal('0.00')
 
-    ultima_tasa = ExchangeRate.objects.order_by('-created_at').first()
+    ultima_tasa = ExchangeRate.objects.filter(user=tenant).order_by('-created_at').first()
     tasa_dia = ultima_tasa.rate if ultima_tasa else Decimal('1.00')
 
     max_reportable_bs = round(max_reportable * tasa_dia, 2)
-    destinations = PaymentDestination.objects.filter(is_active=True).order_by('destination_type')
+    destinations = PaymentDestination.objects.filter(user=tenant, is_active=True).order_by('destination_type')
 
-    # 3. Solo procesamos si realmente hay dinero faltando por reportar
     if request.method == 'POST' and max_reportable > 0:
         payment_method = request.POST.get('payment_method')
         reference_number = request.POST.get('reference_number')
         receipt_file = request.FILES.get('receipt')
+        
+        destination_id = request.POST.get('destination_id')
+        destination_obj = None
+        if destination_id:
+            destination_obj = PaymentDestination.objects.filter(id=destination_id, user=tenant).first()
 
         first_payment_record = None
         remaining_to_distribute = max_reportable
@@ -745,6 +701,7 @@ def customer_bulk_payment(request, customer_id):
             payment = Payment(
                 order=order,
                 payment_method=payment_method,
+                destination=destination_obj,
                 amount=amount_to_apply, 
                 reference_number=f"{reference_number}",
                 is_verified=False,
@@ -762,16 +719,13 @@ def customer_bulk_payment(request, customer_id):
                 payment.save()
                 
             remaining_to_distribute -= amount_to_apply
+            
             if first_payment_record:
-
-                # Calculamos cuánto se aplicó realmente
                 total_applied = max_reportable - remaining_to_distribute
-                
-                # Pasamos is_bulk=True para que tu función de Telegram sepa cómo procesarlo
                 send_telegram_receipt_async(first_payment_record, total_applied, is_bulk=True)
 
         messages.success(request, '¡Liquidación de cuenta reportada exitosamente! Nuestro equipo la verificará a la brevedad.')
-        return redirect('customer_bulk_payment', customer_id=customer.id)
+        return redirect('customer_bulk_payment', public_id=customer.public_id)
 
     context = {
         'customer': customer,
@@ -785,9 +739,9 @@ def customer_bulk_payment(request, customer_id):
     return render(request, 'core/customer_bulk_payment.html', context)
 
 @require_POST
-@user_passes_test(lambda u: u.is_staff)
+@login_required
 def resend_telegram_receipt(request, payment_id):
-    payment = get_object_or_404(Payment, id=payment_id)
+    payment = get_object_or_404(Payment, id=payment_id, order__user=request.user)
     
     is_bulk = bool(payment.transaction_group)
     
@@ -797,54 +751,48 @@ def resend_telegram_receipt(request, payment_id):
     except Exception as e:
         messages.error(request, f'Hubo un error al intentar reenviar: {str(e)}')
         
-    # Redirigimos al usuario a la página en la que estaba (referer)
     return redirect(request.META.get('HTTP_REFERER', '/'))
 
-@user_passes_test(lambda u: u.is_staff)
-def quick_cash_payment(request, pk):
-    # We use POST for security to prevent duplicate payments on reload
+
+@login_required
+def quick_cash_payment(request, public_id):
     if request.method == 'POST':
-        order = get_object_or_404(Order, pk=pk)
+        order = get_object_or_404(Order, public_id=public_id, user=request.user)
         balance = order.balance_due_calculated
         
         if balance > 0:
             try:
-                # 1. Create the verified payment record
-                # Esto detonará el ValidationError si la orden está cancelada
                 Payment.objects.create(
                     order=order,
                     payment_method='CASH',
                     amount=balance,
                     reference_number='Liquidación Rápida (Efectivo)',
-                    is_verified=True # Automatically approved
+                    is_verified=True
                 )
                 
-                # 2. Update the Order's payment status and save to DB
-                # Esto también está protegido por el Fat Model
                 order.payment_status = 'PAID'
                 order.save()
                 
                 messages.success(request, f'Liquidación rápida en efectivo por ${balance} completada.')
                 
             except ValidationError as e:
-                # ¡ATRAPAMOS EL ERROR! Y lo enviamos a la interfaz de usuario
                 error_msg = e.messages[0] if hasattr(e, 'messages') else str(e)
                 messages.error(request, f'Acción denegada: {error_msg}')
                 
-        return redirect('order_detail', pk=order.pk)
+        return redirect('order_detail', public_id=order.public_id)
         
     return redirect('order_list')
 
-@user_passes_test(lambda u: u.is_staff)
-def verify_order_payments(request, pk):
-    order = get_object_or_404(Order, pk=pk)
+
+@login_required
+def verify_order_payments(request, public_id):
+    order = get_object_or_404(Order, public_id=public_id, user=request.user)
     
     if request.method == 'POST':
         payment_id = request.POST.get('payment_id')
         action = request.POST.get('action')
         payment = get_object_or_404(Payment, id=payment_id, order=order)
         
-        # MAGIC: Llamamos al servicio reutilizable
         success, result_message = process_payment_action(payment, action)
         
         if success:
@@ -855,9 +803,8 @@ def verify_order_payments(request, pk):
         else:
             messages.error(request, result_message)
 
-        return redirect('verify_order_payments', pk=order.pk)
+        return redirect('verify_order_payments', public_id=order.public_id)
 
-    # Fetch payments, unverified first
     payments = order.payments.all().order_by('is_verified', '-reported_at')
     for payment in payments:
         if payment.transaction_group:
@@ -871,12 +818,14 @@ def verify_order_payments(request, pk):
     }
     return render(request, 'core/verify_payments.html', context)
 
-@user_passes_test(lambda u: u.is_staff)
+
+@login_required
 def payment_config_list(request):
-    destinations = PaymentDestination.objects.all().order_by('-is_active', 'name')
+    destinations = PaymentDestination.objects.filter(user=request.user).order_by('-is_active', 'name')
 
     if request.method == 'POST':
         PaymentDestination.objects.create(
+            user=request.user,
             name=request.POST.get('name'),
             destination_type=request.POST.get('destination_type'),
             bank=request.POST.get('bank'),
@@ -896,10 +845,10 @@ def payment_config_list(request):
     }
     return render(request, 'core/payment_config.html', context)
 
-@user_passes_test(lambda u: u.is_staff)
+
+@login_required
 def toggle_payment_destination(request, pk):
-    # Cambia el estado (Activo <-> Inactivo) rápidamente
-    destination = get_object_or_404(PaymentDestination, pk=pk)
+    destination = get_object_or_404(PaymentDestination, pk=pk, user=request.user)
     destination.is_active = not destination.is_active
     destination.save()
     
@@ -907,16 +856,21 @@ def toggle_payment_destination(request, pk):
     messages.info(request, f'El método "{destination.name}" ha sido {status}.')
     return redirect('payment_config_list')
 
-@user_passes_test(lambda u: u.is_staff)
+
+@login_required
 def edit_recipe(request, pk):
-    product = get_object_or_404(Product, pk=pk)
-    categories = Category.objects.all()
-    ingredients = Ingredient.objects.all().order_by('name')
+    product = get_object_or_404(Product, pk=pk, user=request.user)
+    categories = Category.objects.filter(user=request.user)
+    ingredients = Ingredient.objects.filter(user=request.user).order_by('name')
 
     if request.method == 'POST':
-        # 1. Actualizar los datos base del Producto
         product.name = request.POST.get('name')
-        product.category_id = request.POST.get('category')
+        
+        cat_id = request.POST.get('category')
+        if cat_id:
+            category_obj = get_object_or_404(Category, id=cat_id, user=request.user)
+            product.category = category_obj
+            
         product.description = request.POST.get('description', '')
         product.sale_price = request.POST.get('sale_price')
         product.recipe_yield = request.POST.get('recipe_yield')
@@ -925,18 +879,17 @@ def edit_recipe(request, pk):
         product.stock_quantity = int(request.POST.get('stock_quantity', '0')) if product.track_stock else 0
         product.save()
 
-        # 2. Estrategia "Wipe and Replace" para los ingredientes de la receta
-        product.recipe_items.all().delete() # Limpiamos la receta anterior
+        product.recipe_items.all().delete() 
         
         ingredient_ids = request.POST.getlist('ingredient_id[]')
         quantities = request.POST.getlist('quantity_required[]')
         
-        # Insertamos la nueva receta
         for i in range(len(ingredient_ids)):
             if ingredient_ids[i] and quantities[i]:
+                ing_obj = get_object_or_404(Ingredient, id=ingredient_ids[i], user=request.user)
                 RecipeItem.objects.create(
                     product=product,
-                    ingredient_id=ingredient_ids[i],
+                    ingredient=ing_obj,
                     quantity_required=quantities[i]
                 )
                 
@@ -950,9 +903,10 @@ def edit_recipe(request, pk):
     }
     return render(request, 'core/product_edit.html', context)
 
-@user_passes_test(lambda u: u.is_staff)
+
+@login_required
 def delete_product(request, pk):
-    product = get_object_or_404(Product, pk=pk)
+    product = get_object_or_404(Product, pk=pk, user=request.user)
     
     if request.method == 'POST':
         try:
@@ -961,7 +915,6 @@ def delete_product(request, pk):
             messages.warning(request, f'El producto "{product_name}" ha sido eliminado del catálogo.')
             return redirect('product_list')
         except ProtectedError:
-            # Si el producto ya tiene ventas, Django protegerá la base de datos
             messages.error(request, f'No se puede eliminar "{product.name}" porque ya existen ventas asociadas a este producto. Sugerencia: Edita el producto y márcalo como "Oculto/Inactivo".')
             return redirect('product_list')
             
@@ -974,7 +927,6 @@ def telegram_webhook(request):
             update = json.loads(request.body.decode('utf-8'))
             TOKEN = settings.TELEGRAM_BOT_TOKEN
             
-            # --- CASO A: EL USUARIO HIZO CLIC EN UN BOTÓN ---
             if 'callback_query' in update:
                 callback = update['callback_query']
                 chat_id = callback['message']['chat']['id']
@@ -1007,10 +959,6 @@ def telegram_webhook(request):
                 chat_id = update['message']['chat']['id']
                 texto_recibido = update['message']['text']
                 
-                # Candado de Seguridad (Opcional pero recomendado):
-                # if str(chat_id) != '-100_TU_ID_DE_GRUPO': return JsonResponse({"status": "ok"})
-                
-                # Si el mensaje empieza con "/", llamamos a nuestro procesador
                 if texto_recibido.startswith('/'):
                     respuesta_texto = process_telegram_command(texto_recibido)
                     
@@ -1023,9 +971,13 @@ def telegram_webhook(request):
             
         return JsonResponse({"status": "ok"})
 
+
+@login_required
 def pending_payments_list(request):
-    # Obtenemos todos los pagos sin verificar
-    pagos_pendientes = Payment.objects.filter(is_verified=False).select_related('order', 'order__customer')
+    pagos_pendientes = Payment.objects.filter(
+        is_verified=False, 
+        order__user=request.user
+    ).select_related('order', 'order__customer')
     
     pagos_agrupados = {}
     pagos_individuales = []
@@ -1043,13 +995,12 @@ def pending_payments_list(request):
                     'referencia': pago.reference_number,
                     'monto': 0,
                     'ordenes': [],
-                    'orden_principal_id': pago.order.id,
+                    'orden_principal_public_id': pago.order.public_id,
                     'pago_id': pago.id,
                 }
             pagos_agrupados[tg]['monto'] += pago.amount
             pagos_agrupados[tg]['ordenes'].append(str(pago.order.id))
         else:
-            # Pago individual
             pagos_individuales.append({
                 'es_bulk': False,
                 'fecha': pago.reported_at,
@@ -1057,17 +1008,15 @@ def pending_payments_list(request):
                 'referencia': pago.reference_number,
                 'monto': pago.amount,
                 'ordenes_str': str(pago.order.id),
-                'orden_principal_id': pago.order.id,
+                'orden_principal_public_id': pago.order.public_id, 
                 'pago_id': pago.id,
             })
 
-    # Unimos y formateamos
     lista_final_pagos = pagos_individuales
     for tg, data in pagos_agrupados.items():
         data['ordenes_str'] = ", #".join(data['ordenes'])
         lista_final_pagos.append(data)
 
-    # Ordenamos del más antiguo al más reciente (para priorizar los que llevan más tiempo esperando)
     lista_final_pagos.sort(key=lambda x: x['fecha'])
 
     context = {
@@ -1075,42 +1024,39 @@ def pending_payments_list(request):
     }
     return render(request, 'core/pending_payments.html', context)
 
-def send_payment_link_whatsapp(request, pk):
-    """Vista para enviar el link de pago vía WhatsApp usando la utilidad en background"""
+
+@login_required
+def send_payment_link_whatsapp(request, public_id):
     if request.method == 'POST':
-        order = get_object_or_404(Order, pk=pk)
+        order = get_object_or_404(Order, public_id=public_id, user=request.user)
         
         if not order.customer or not order.customer.phone:
             return JsonResponse({'success': False, 'error': 'El cliente no tiene teléfono registrado.'})
 
-        # 1. Construimos el link y el mensaje
-        payment_link = request.build_absolute_uri(reverse('public_payment_link', args=[order.pk]))
+        payment_link = request.build_absolute_uri(reverse('public_payment_link', args=[order.public_id]))
         name = order.customer.full_name or "Cliente"
         message = f"¡Hola {name}! 👋\n\nAquí tienes el enlace para reportar el pago de tu orden #{order.id}:\n{payment_link}\n\nGracias por preferir a CrumbCore. 🍪"
 
-        # 2. Le pasamos el trabajo pesado a tu función de utilidades
         enviar_whatsapp_background(order.customer.phone, message)
         
-        # 3. Respondemos al instante al navegador (el mensaje ya va en camino)
         return JsonResponse({'success': True, 'message': 'Mensaje enviado a la cola en segundo plano.'})
             
     return JsonResponse({'success': False, 'error': 'Método inválido.'})
 
-def send_customer_bulk_whatsapp(request, pk):
+
+@login_required
+def send_customer_bulk_whatsapp(request, public_id):
     if request.method == 'POST':
-        customer = get_object_or_404(Customer, pk=pk)
+        customer = get_object_or_404(Customer, public_id=public_id, user=request.user)
         
         if not customer.phone:
             return JsonResponse({'success': False, 'error': 'El cliente no tiene teléfono registrado.'})
 
-        # 1. Construimos el link absoluto
-        bulk_payment_link = request.build_absolute_uri(reverse('customer_bulk_payment', args=[customer.pk]))
+        bulk_payment_link = request.build_absolute_uri(reverse('customer_bulk_payment', args=[customer.public_id]))
         name = customer.full_name or "Cliente"
         
-        # 2. Armamos el mensaje
-        message = f"¡Hola {name}! 👋\n\nAquí tienes el enlace seguro para ver tu estado de cuenta y pagar tus órdenes pendientes en un solo paso:\n{bulk_payment_link}\n\nGracias por preferir a CrumbCore. 🍪"
+        message = f"¡Hola {name}! 👋\n\nAquí tienes el enlace para ver tu estado de cuenta y pagar tus órdenes pendientes en un solo paso:\n{bulk_payment_link}\n\nGracias por preferir a CrumbCore. 🍪"
 
-        # 3. Enviamos a la cola de Node.js en Railway
         enviar_whatsapp_background(customer.phone, message)
         
         return JsonResponse({'success': True, 'message': 'Mensaje de estado de cuenta encolado.'})

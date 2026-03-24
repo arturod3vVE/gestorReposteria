@@ -3,10 +3,12 @@
 {% block title %}Añadir Categoría - CrumbCore{% endblock %}
 
 {% block content %}
-<div class="d-sm-flex align-items-center justify-content-between mb-4">
+<div class="d-flex align-items-center justify-content-between mb-4">
     <h1 class="h3 mb-0 text-gray-800">Añadir Nueva Categoría</h1>
-    <a href="{% url 'product_list' %}" class="d-none d-sm-inline-block btn btn-sm btn-secondary shadow-sm">
-        <i class="fas fa-arrow-left fa-sm text-white-50"></i> Volver al Catálogo
+    <a href="{% url 'product_list' %}" class="btn btn-sm btn-secondary shadow-sm">
+        <i class="fas fa-arrow-left fa-sm text-white-50"></i> 
+        <span class="d-none d-sm-inline">Volver al Catálogo</span>
+        <span class="d-inline d-sm-none">Volver</span>
     </a>
 </div>
 
@@ -31,7 +33,7 @@
                     </div>
 
                     <hr>
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-primary btn-block d-sm-inline-block w-auto-sm">
                         <i class="fas fa-save"></i> Guardar Categoría
                     </button>
                 </form>

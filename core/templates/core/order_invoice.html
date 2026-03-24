@@ -2,21 +2,23 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Factura - Orden #{{ order.id }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>Factura - Orden #{{ order.id }}</title>
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
-            background-color: #fff;
+            background-color: #f8f9fc; /* Fondo sutilmente gris fuera de la hoja */
             color: #333;
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
             font-size: 14px;
         }
         .invoice-container {
             max-width: 800px;
+            background-color: #fff;
             margin: 40px auto;
             padding: 30px;
             border: 1px solid #eee;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15); /* Sombra estilo sb-admin-2 */
+            border-radius: 0.35rem;
         }
         .invoice-header {
             border-bottom: 2px solid #333;
@@ -27,14 +29,29 @@
             background-color: #f8f9fa;
             border-bottom: 2px solid #333;
         }
-        /* Reglas específicas para cuando se mande a la impresora física */
+        
+        /* 📱 Reglas para pantallas móviles (Antes de imprimir) */
+        @media (max-width: 576px) {
+            .invoice-container {
+                margin: 10px;
+                padding: 15px;
+            }
+            .invoice-header .text-right {
+                text-align: left !important; /* Alineamos a la izquierda en celular */
+                margin-top: 15px;
+            }
+        }
+
+        /* 🖨️ Reglas específicas para la impresora física o exportar a PDF */
         @media print {
+            body { background-color: #fff; }
             .invoice-container {
                 margin: 0;
                 padding: 0;
                 border: none;
                 box-shadow: none;
                 width: 100%;
+                max-width: 100%;
             }
             .d-print-none {
                 display: none !important;
@@ -46,9 +63,9 @@
 
 <div class="invoice-container">
     
-    <div class="text-right mb-3 d-print-none">
-        <button onclick="window.print()" class="btn btn-primary">
-            Imprimir Documento
+    <div class="text-right mb-4 d-print-none">
+        <button onclick="window.print()" class="btn btn-primary shadow-sm font-weight-bold p-2">
+            <i class="fas fa-print mr-1"></i> Imprimir Documento
         </button>
     </div>
 
@@ -81,28 +98,30 @@
         </div>
     </div>
 
-    <table class="table table-sm">
-        <thead>
-            <tr>
-                <th>Descripción del Producto</th>
-                <th class="text-center">Cant.</th>
-                <th class="text-right">Precio Unit.</th>
-                <th class="text-right">Total</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in order.items.all %}
-            <tr>
-                <td>{{ item.product.name }}</td>
-                <td class="text-center">{{ item.quantity }}</td>
-                <td class="text-right">${{ item.unit_price }}</td>
-                <td class="text-right font-weight-bold">${{ item.subtotal }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="4" class="text-center">No hay productos registrados.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="table-responsive overflow-hidden">
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th>Descripción del Producto</th>
+                    <th class="text-center">Cant.</th>
+                    <th class="text-right">Precio Unit.</th>
+                    <th class="text-right">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in order.items.all %}
+                <tr>
+                    <td>{{ item.product.name }}</td>
+                    <td class="text-center">{{ item.quantity }}</td>
+                    <td class="text-right">${{ item.unit_price }}</td>
+                    <td class="text-right font-weight-bold">${{ item.subtotal }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="text-center">No hay productos registrados.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
     <div class="row mt-4">
         <div class="col-sm-7">
@@ -129,8 +148,8 @@
                     <td class="text-right text-success">-${{ order.amount_paid }}</td>
                 </tr>
                 <tr class="border-top">
-                    <th class="text-right h5 mb-0">Total a Pagar:</th>
-                    <td class="text-right h5 mb-0 font-weight-bold">${{ order.balance_due_calculated }}</td>
+                    <th class="text-right h5 mb-0 pt-2">Total a Pagar:</th>
+                    <td class="text-right h5 mb-0 font-weight-bold pt-2">${{ order.balance_due_calculated }}</td>
                 </tr>
                 {% if order.balance_due_calculated > 0 %}
                 <tr>
@@ -149,12 +168,14 @@
 
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/js/all.min.js"></script>
+
 <script>
     window.onload = function() {
-        // Da un pequeño margen de tiempo para que carguen los estilos de Bootstrap
+        // Da un pequeño margen de tiempo para que carguen las fuentes de iconos y estilos
         setTimeout(function() {
             window.print();
-        }, 500);
+        }, 800);
     }
 </script>
 

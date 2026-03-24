@@ -2,11 +2,56 @@
 
 {% block title %}Biblioteca de Ingredientes - CrumbCore{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* 📱 MAGIA RESPONSIVE: De Tabla a Tarjetas en Móviles */
+    @media (max-width: 767px) {
+        .table-mobile-cards thead { display: none; }
+        .table-mobile-cards tr { 
+            display: block; 
+            margin-bottom: 1rem; 
+            border: 1px solid #e3e6f0; 
+            border-radius: 0.5rem; 
+            background-color: #fff; 
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075); 
+        }
+        .table-mobile-cards td { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            text-align: right !important; 
+            border-top: none; 
+            border-bottom: 1px solid #f8f9fc; 
+            padding: 0.75rem; 
+        }
+        .table-mobile-cards td:last-child { border-bottom: none; }
+        .table-mobile-cards td::before { 
+            content: attr(data-label); 
+            font-weight: bold; 
+            text-transform: uppercase; 
+            font-size: 0.75rem; 
+            color: #858796; 
+            text-align: left; 
+            margin-right: 15px; 
+        }
+        .table-mobile-cards td.acciones-td {
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        .table-mobile-cards td.acciones-td::before {
+            margin-right: auto;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="d-sm-flex align-items-center justify-content-between mb-4">
+<div class="d-flex align-items-center justify-content-between mb-4">
     <h1 class="h3 mb-0 text-gray-800">Biblioteca de Ingredientes</h1>
-    <a href="{% url 'create_ingredient' %}" class="d-none d-sm-inline-block btn btn-sm btn-primary shadow-sm">
-        <i class="fas fa-plus fa-sm text-white-50"></i> Añadir Nuevo Ingrediente
+    <a href="{% url 'create_ingredient' %}" class="btn btn-sm btn-primary shadow-sm mt-2 mt-sm-0">
+        <i class="fas fa-plus fa-sm text-white-50"></i> 
+        <span class="d-none d-sm-inline">Añadir Nuevo Ingrediente</span>
+        <span class="d-inline d-sm-none">Nuevo</span>
     </a>
 </div>
 
@@ -16,8 +61,8 @@
     </div>
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
-                <thead>
+            <table class="table table-bordered table-mobile-cards" id="dataTable" width="100%" cellspacing="0">
+                <thead class="bg-light">
                     <tr>
                         <th>Nombre</th>
                         <th>Unidad de Medida</th>
@@ -29,10 +74,10 @@
                 <tbody>
                     {% for ingredient in ingredients %}
                     <tr>
-                        <td class="align-middle">{{ ingredient.name }}</td>
-                        <td class="align-middle">{{ ingredient.get_measurement_unit_display }}</td>
-                        <td class="align-middle">${{ ingredient.cost_per_unit }}</td>
-                        <td class="align-middle text-center">
+                        <td data-label="Nombre" class="align-middle font-weight-bold">{{ ingredient.name }}</td>
+                        <td data-label="Medida" class="align-middle">{{ ingredient.get_measurement_unit_display }}</td>
+                        <td data-label="Costo" class="align-middle">${{ ingredient.cost_per_unit }}</td>
+                        <td data-label="Stock Actual" class="align-middle text-center">
                             {% if ingredient.track_stock %}
                                 {% if ingredient.stock_quantity > 0 %}
                                     <span class="badge badge-success px-2 py-1">{{ ingredient.stock_quantity }} {{ ingredient.get_measurement_unit_display|lower }}</span>
@@ -43,11 +88,11 @@
                                 <span class="badge badge-secondary px-2 py-1" style="background-color: #e3e6f0; color: #5a5c69;">No rastreado</span>
                             {% endif %}
                         </td>
-                        <td class="align-middle text-center">
-                            <a href="{% url 'edit_ingredient' ingredient.pk %}" class="btn btn-warning btn-circle btn-sm" title="Editar">
+                        <td data-label="Acciones" class="align-middle text-center acciones-td">
+                            <a href="{% url 'edit_ingredient' ingredient.pk %}" class="btn btn-warning btn-circle btn-sm shadow-sm" title="Editar">
                                 <i class="fas fa-edit"></i>
                             </a>
-                            <a href="{% url 'delete_ingredient' ingredient.pk %}" class="btn btn-danger btn-circle btn-sm" title="Eliminar">
+                            <a href="{% url 'delete_ingredient' ingredient.pk %}" class="btn btn-danger btn-circle btn-sm shadow-sm" title="Eliminar">
                                 <i class="fas fa-trash"></i>
                             </a>
                         </td>

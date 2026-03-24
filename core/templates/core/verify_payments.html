@@ -2,11 +2,60 @@
 
 {% block title %}Verificación de Pagos - Orden #{{ order.id }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* 📱 MAGIA RESPONSIVE: De Tabla a Tarjetas en Móviles */
+    @media (max-width: 767px) {
+        .table-mobile-cards thead { display: none; }
+        .table-mobile-cards tr { 
+            display: block; 
+            margin-bottom: 1rem; 
+            border: 1px solid #e3e6f0; 
+            border-radius: 0.5rem; 
+            background-color: #fff; 
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075); 
+        }
+        .table-mobile-cards td { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            text-align: right !important; 
+            border-top: none; 
+            border-bottom: 1px solid #f8f9fc; 
+            padding: 0.75rem; 
+        }
+        .table-mobile-cards td:last-child { border-bottom: none; }
+        .table-mobile-cards td::before { 
+            content: attr(data-label); 
+            font-weight: bold; 
+            text-transform: uppercase; 
+            font-size: 0.75rem; 
+            color: #858796; 
+            text-align: left; 
+            margin-right: 15px; 
+        }
+        /* Ajuste para que los botones de acción no se amontonen */
+        .table-mobile-cards td.acciones-td {
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+        }
+        .table-mobile-cards td.acciones-td .d-flex {
+            justify-content: flex-end !important;
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="d-sm-flex align-items-center justify-content-between mb-4">
-    <h1 class="h3 mb-0 text-gray-800">Panel de Verificación de Pagos</h1>
-    <a href="{% url 'order_detail' order.id %}" class="btn btn-sm btn-secondary shadow-sm">
-        <i class="fas fa-arrow-left fa-sm text-white-50"></i> Volver a Detalles
+<div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between mb-4">
+    <h1 class="h3 mb-3 mb-sm-0 text-gray-800">Verificación de Pagos</h1>
+    
+    <a href="{% url 'order_detail' order.public_id %}" class="btn btn-sm btn-secondary shadow-sm">
+        <i class="fas fa-arrow-left fa-sm text-white-50"></i> 
+        <span class="d-none d-sm-inline">Volver a Detalles de Orden #{{ order.id }}</span>
+        <span class="d-inline d-sm-none">Volver a la Orden</span>
     </a>
 </div>
 
@@ -50,8 +99,8 @@
                 <h6 class="m-0 font-weight-bold text-primary">Pagos Reportados</h6>
             </div>
             <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-bordered table-hover">
+                <div class="table-responsive overflow-hidden">
+                    <table class="table table-bordered table-hover table-mobile-cards">
                         <thead class="bg-light">
                             <tr>
                                 <th>Fecha</th>
@@ -64,8 +113,8 @@
                         <tbody>
                             {% for payment in payments %}
                             <tr>
-                                <td class="align-middle">{{ payment.reported_at|date:"d/m/Y h:i A" }}</td>
-                                <td class="align-middle">
+                                <td data-label="Fecha" class="align-middle">{{ payment.reported_at|date:"d/m/Y h:i A" }}</td>
+                                <td data-label="Método/Ref." class="align-middle text-right text-sm-left">
                                     <strong>{{ payment.get_payment_method_display }}</strong>
                                     
                                     {% if payment.destination %}
@@ -79,19 +128,19 @@
                                     <br><span class="small text-muted">Ref: {{ payment.reference_number }}</span>
                                     
                                     {% if payment.transaction_group %}
-                                        <div class="mt-2 p-2 border border-info rounded bg-white small shadow-sm">
+                                        <div class="mt-2 p-2 border border-info rounded bg-light small shadow-sm text-left d-inline-block">
                                             <span class="badge badge-info mb-1"><i class="fas fa-layer-group"></i> Liquidación Múltiple</span>
                                             <ul class="pl-3 mb-0 text-muted">
                                                 <li>Esta Orden: <strong>${{ payment.amount }}</strong></li>
                                                 {% for sibling in payment.siblings %}
-                                                    <li>Orden <a href="{% url 'order_detail' sibling.order.id %}" target="_blank">#{{ sibling.order.id }}</a>: <strong>${{ sibling.amount }}</strong></li>
+                                                    <li>Orden <a href="{% url 'order_detail' sibling.order.public_id %}" target="_blank">#{{ sibling.order.id }}</a>: <strong>${{ sibling.amount }}</strong></li>
                                                 {% endfor %}
                                             </ul>
                                         </div>
                                     {% endif %}
                                 </td>
-                                <td class="align-middle text-right font-weight-bold">${{ payment.amount }}</td>
-                                <td class="align-middle text-center">
+                                <td data-label="Monto" class="align-middle text-right font-weight-bold">${{ payment.amount }}</td>
+                                <td data-label="Comprobante" class="align-middle text-center">
                                     {% if payment.receipt %}
                                         <a href="{{ payment.receipt.url }}" target="_blank" class="btn btn-sm btn-info shadow-sm" title="Ver Comprobante">
                                             <i class="fas fa-image"></i> Ver Imagen
@@ -100,7 +149,7 @@
                                         <span class="text-muted small">Sin archivo</span>
                                     {% endif %}
                                 </td>
-                                <td class="align-middle text-center">
+                                <td data-label="Acciones" class="align-middle text-center acciones-td">
                                     {% if payment.is_verified %}
                                         <div class="d-flex justify-content-center align-items-center">
                                             <span class="badge badge-success px-3 py-2 mr-2"><i class="fas fa-check-double"></i> Verificado</span>
@@ -115,7 +164,7 @@
                                     {% else %}
                                         <div class="d-flex justify-content-center">
                                             
-                                            <form method="POST" action="{% url 'verify_order_payments' order.pk %}" class="mr-1">
+                                            <form method="POST" action="{% url 'verify_order_payments' order.public_id %}" class="mr-1">
                                                 {% csrf_token %}
                                                 <input type="hidden" name="payment_id" value="{{ payment.id }}">
                                                 <input type="hidden" name="action" value="approve">
@@ -125,7 +174,7 @@
                                                 </button>
                                             </form>
                                             
-                                            <form method="POST" action="{% url 'verify_order_payments' order.pk %}" class="mr-1">
+                                            <form method="POST" action="{% url 'verify_order_payments' order.public_id %}" class="mr-1">
                                                 {% csrf_token %}
                                                 <input type="hidden" name="payment_id" value="{{ payment.id }}">
                                                 <input type="hidden" name="action" value="reject">

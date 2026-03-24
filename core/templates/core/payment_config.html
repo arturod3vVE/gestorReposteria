@@ -2,6 +2,42 @@
 
 {% block title %}Configuración de Pagos - CrumbCore{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* 📱 MAGIA RESPONSIVE: De Tabla a Tarjetas en Móviles */
+    @media (max-width: 767px) {
+        .table-mobile-cards thead { display: none; }
+        .table-mobile-cards tr { 
+            display: block; 
+            margin-bottom: 1rem; 
+            border: 1px solid #e3e6f0; 
+            border-radius: 0.5rem; 
+            background-color: #fff; 
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075); 
+        }
+        .table-mobile-cards td { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            text-align: right !important; 
+            border-top: none; 
+            border-bottom: 1px solid #f8f9fc; 
+            padding: 0.75rem; 
+        }
+        .table-mobile-cards td:last-child { border-bottom: none; }
+        .table-mobile-cards td::before { 
+            content: attr(data-label); 
+            font-weight: bold; 
+            text-transform: uppercase; 
+            font-size: 0.75rem; 
+            color: #858796; 
+            text-align: left; 
+            margin-right: 15px; 
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
     <h1 class="h3 mb-0 text-gray-800">Cuentas y Métodos de Pago</h1>
@@ -16,8 +52,8 @@
     {% endfor %}
 {% endif %}
 
-<div class="row">
-    <div class="col-lg-4">
+<div class="row flex-column-reverse flex-lg-row">
+    <div class="col-lg-4 mb-4 mb-lg-0">
         <div class="card shadow mb-4">
             <div class="card-header py-3">
                 <h6 class="m-0 font-weight-bold text-primary">Registrar Nueva Cuenta</h6>
@@ -92,7 +128,7 @@
                         </div>
                     </div>
 
-                    <button type="submit" class="btn btn-primary btn-block shadow-sm font-weight-bold mt-4">
+                    <button type="submit" class="btn btn-primary btn-block shadow-sm font-weight-bold mt-4 p-3">
                         <i class="fas fa-save mr-1"></i> Guardar Método
                     </button>
                 </form>
@@ -107,7 +143,7 @@
             </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-bordered table-hover">
+                    <table class="table table-bordered table-hover table-mobile-cards">
                         <thead class="bg-light">
                             <tr>
                                 <th>Nombre y Tipo</th>
@@ -119,30 +155,32 @@
                         <tbody>
                             {% for dest in destinations %}
                             <tr>
-                                <td class="align-middle">
+                                <td data-label="Nombre" class="align-middle">
                                     <span class="font-weight-bold text-gray-800">{{ dest.name }}</span><br>
                                     <small class="text-muted">{{ dest.get_destination_type_display }}</small>
                                 </td>
-                                <td class="align-middle">
-                                    <span style="white-space: pre-line;" class="small text-gray-800">{{ dest.formatted_details }}</span>
+                                <td data-label="Datos" class="align-middle">
+                                    <div class="text-sm-right text-md-left">
+                                        <span style="white-space: pre-line;" class="small text-gray-800 text-left">{{ dest.formatted_details }}</span>
+                                    </div>
                                 </td>
-                                <td class="align-middle text-center">
+                                <td data-label="Estado" class="align-middle text-center">
                                     {% if dest.is_active %}
                                         <span class="badge badge-success px-2 py-1">Visible</span>
                                     {% else %}
                                         <span class="badge badge-secondary px-2 py-1">Oculto</span>
                                     {% endif %}
                                 </td>
-                                <td class="align-middle text-center">
+                                <td data-label="Acción" class="align-middle text-center">
                                     <form method="POST" action="{% url 'toggle_payment_destination' dest.pk %}">
                                         {% csrf_token %}
                                         {% if dest.is_active %}
                                             <button type="submit" class="btn btn-warning btn-sm shadow-sm" title="Ocultar del link público">
-                                                <i class="fas fa-eye-slash"></i>
+                                                <i class="fas fa-eye-slash"></i> <span class="d-inline d-md-none ml-1 font-weight-bold">Ocultar</span>
                                             </button>
                                         {% else %}
                                             <button type="submit" class="btn btn-success btn-sm shadow-sm" title="Mostrar en el link público">
-                                                <i class="fas fa-eye"></i>
+                                                <i class="fas fa-eye"></i> <span class="d-inline d-md-none ml-1 font-weight-bold">Mostrar</span>
                                             </button>
                                         {% endif %}
                                     </form>
@@ -168,7 +206,6 @@
         const transferFields = document.getElementById('transfer_fields');
         const zelleFields = document.getElementById('zelle_fields');
 
-        // Inputs para manejar el atributo 'required'
         const reqBank = document.getElementById('input_bank');
         const reqDoc = document.getElementById('input_doc');
         const reqPhone = document.getElementById('input_phone');

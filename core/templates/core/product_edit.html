@@ -3,10 +3,12 @@
 {% block title %}Editar Receta: {{ product.name }} - CrumbCore{% endblock %}
 
 {% block content %}
-<div class="d-sm-flex align-items-center justify-content-between mb-4">
+<div class="d-flex align-items-center justify-content-between mb-4">
     <h1 class="h3 mb-0 text-gray-800">Editar Receta: {{ product.name }}</h1>
     <a href="{% url 'product_list' %}" class="btn btn-sm btn-secondary shadow-sm">
-        <i class="fas fa-arrow-left fa-sm text-white-50"></i> Volver al Catálogo
+        <i class="fas fa-arrow-left fa-sm text-white-50"></i> 
+        <span class="d-none d-sm-inline">Volver al Catálogo</span>
+        <span class="d-inline d-sm-none">Volver</span>
     </a>
 </div>
 
@@ -68,8 +70,8 @@
                         <input type="number" step="1" min="0" name="stock_quantity" id="stock_quantity" class="form-control" value="{{ product.stock_quantity|default:'0' }}">
                         <small class="text-muted d-block mt-1">Ajusta el stock actual de unidades listas para vender.</small>
                     </div>
-                    </div>
-            </div>
+                    
+                </div> </div>
         </div>
 
         <div class="col-lg-7">
@@ -77,32 +79,32 @@
                 <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
                     <h6 class="m-0 font-weight-bold text-primary">Ingredientes y Costos</h6>
                     <button type="button" class="btn btn-sm btn-success" id="add-ingredient-btn">
-                        <i class="fas fa-plus"></i> Añadir Ingrediente
+                        <i class="fas fa-plus"></i> <span class="d-none d-sm-inline">Añadir Ingrediente</span>
                     </button>
                 </div>
-                <div class="card-body" id="recipe-container">
+                <div class="card-body px-2 px-sm-3" id="recipe-container">
                     
-                    <div class="row recipe-row mb-2" id="empty-row" style="display: none;">
-                        <div class="col-7">
-                            <select name="ingredient_id[]" class="form-control" disabled>
+                    <div class="row recipe-row mb-2 px-1" id="empty-row" style="display: none;">
+                        <div class="col-7 col-sm-8 px-1">
+                            <select name="ingredient_id[]" class="form-control form-control-sm" disabled>
                                 <option value="" disabled selected>Seleccione ingrediente...</option>
                                 {% for ing in ingredients %}
                                     <option value="{{ ing.id }}">{{ ing.name }} ({{ ing.get_measurement_unit_display }})</option>
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-4">
-                            <input type="number" step="0.01" min="0.01" name="quantity_required[]" class="form-control" placeholder="Cantidad" disabled>
+                        <div class="col-3 px-1">
+                            <input type="number" step="0.01" min="0.01" name="quantity_required[]" class="form-control form-control-sm" placeholder="Cantidad" disabled>
                         </div>
-                        <div class="col-1 text-right">
-                            <button type="button" class="btn btn-danger btn-sm remove-row-btn"><i class="fas fa-times"></i></button>
+                        <div class="col-2 col-sm-1 px-1 text-right">
+                            <button type="button" class="btn btn-danger btn-sm remove-row-btn w-100"><i class="fas fa-times"></i></button>
                         </div>
                     </div>
 
                     {% for item in product.recipe_items.all %}
-                        <div class="row recipe-row mb-2">
-                            <div class="col-7">
-                                <select name="ingredient_id[]" class="form-control" required>
+                        <div class="row recipe-row mb-2 px-1">
+                            <div class="col-7 col-sm-8 px-1">
+                                <select name="ingredient_id[]" class="form-control form-control-sm" required>
                                     {% for ing in ingredients %}
                                         <option value="{{ ing.id }}" {% if ing.id == item.ingredient_id %}selected{% endif %}>
                                             {{ ing.name }} ({{ ing.get_measurement_unit_display }})
@@ -110,11 +112,11 @@
                                     {% endfor %}
                                 </select>
                             </div>
-                            <div class="col-4">
-                                <input type="number" step="0.01" min="0.01" name="quantity_required[]" class="form-control" value="{{ item.quantity_required }}" required>
+                            <div class="col-3 px-1">
+                                <input type="number" step="0.01" min="0.01" name="quantity_required[]" class="form-control form-control-sm" value="{{ item.quantity_required|stringformat:'f' }}" required>
                             </div>
-                            <div class="col-1 text-right">
-                                <button type="button" class="btn btn-danger btn-sm remove-row-btn"><i class="fas fa-times"></i></button>
+                            <div class="col-2 col-sm-1 px-1 text-right">
+                                <button type="button" class="btn btn-danger btn-sm remove-row-btn w-100"><i class="fas fa-times"></i></button>
                             </div>
                         </div>
                     {% endfor %}
@@ -122,8 +124,8 @@
                 </div>
             </div>
             
-            <button type="submit" class="btn btn-primary btn-block btn-lg shadow-sm">
-                <i class="fas fa-save"></i> Guardar Cambios en la Receta
+            <button type="submit" class="btn btn-primary btn-block btn-lg shadow-sm font-weight-bold p-3 mb-4">
+                <i class="fas fa-save mr-1"></i> Guardar Cambios en la Receta
             </button>
         </div>
 
