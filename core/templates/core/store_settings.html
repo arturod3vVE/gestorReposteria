@@ -1,0 +1,76 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Configuración de la Tienda - CrumbCore{% endblock %}
+
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Configuración de la Tienda</h1>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} shadow-sm font-weight-bold alert-dismissible fade show">
+            <i class="fas fa-info-circle mr-1"></i> {{ message }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="row">
+    <div class="col-lg-6">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-store mr-2"></i>Datos Generales y Notificaciones</h6>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" action="{% url 'store_settings' %}">
+                    {% csrf_token %}
+
+                    <div class="form-group">
+                        <label for="store_name" class="font-weight-bold small text-gray-800">Nombre de tu Repostería / Tienda</label>
+                        <input type="text" class="form-control" id="store_name" name="store_name" value="{{ settings.store_name|default:'' }}" placeholder="Ej. Dulces Momentos">
+                        <small class="text-muted d-block mt-1">Este nombre aparecerá en los encabezados de los mensajes de Telegram.</small>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <h5 class="font-weight-bold text-gray-800 mb-3"><i class="fab fa-telegram text-info mr-2"></i>Alertas por Telegram</h5>
+
+                    <div class="alert alert-info shadow-sm small p-3 mb-4">
+                        <strong class="d-block mb-1">¿Cómo obtener tu Chat ID?</strong>
+                        1. Entra a Telegram y busca nuestro bot oficial: <strong>@TuBotDeCrumbCore</strong><br>
+                        2. Presiona <strong>Iniciar</strong> (o escribe <code>/start</code>).<br>
+                        3. El bot te responderá con tu ID numérico. Cópialo y pégalo aquí abajo.
+                    </div>
+
+                    <div class="form-group">
+                        <label for="telegram_chat_id" class="font-weight-bold small text-gray-800">Tu Chat ID de Telegram</label>
+                        <input type="text" class="form-control border-left-info" id="telegram_chat_id" name="telegram_chat_id" value="{{ settings.telegram_chat_id|default:'' }}" placeholder="Ej. 123456789">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block font-weight-bold mt-4 p-3 shadow-sm">
+                        <i class="fas fa-save mr-1"></i> Guardar Configuraciones
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 d-none d-lg-block">
+        <div class="card shadow mb-4 border-left-success">
+            <div class="card-body text-center p-5">
+                <i class="fas fa-bell fa-4x text-success mb-4" style="opacity: 0.5;"></i>
+                <h4 class="font-weight-bold text-gray-800 mb-3">Mantente siempre informado</h4>
+                <p class="text-muted">
+                    Al vincular tu cuenta de Telegram, recibirás alertas automáticas e instantáneas cada vez que un cliente reporte un nuevo pago en tu enlace público.
+                </p>
+                <p class="text-muted mb-0">
+                    ¡Aprobar pagos nunca fue tan rápido!
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

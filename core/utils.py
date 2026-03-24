@@ -5,26 +5,34 @@ import requests
 from django.conf import settings
 
 def send_telegram_receipt_async(payment_record, total_amount, is_bulk=False):
-    """
-    Ejecuta la petición HTTP en un hilo separado para que el cliente 
-    no tenga que esperar a que Telegram responda para ver su pantalla de éxito.
-    """
+    
+    tienda_user = payment_record.order.user
+    
+    try:
+        CHAT_ID = tienda_user.store_settings.telegram_chat_id
+        store_name = tienda_user.store_settings.store_name
+        if not store_name:
+            store_name = "CrumbCore" 
+    except Exception as e:
+        print(f"Aviso: La tienda de {tienda_user.username} no tiene configuraciones de Telegram.")
+        return 
+    if not CHAT_ID:
+        print(f"Aviso: La tienda de {tienda_user.username} no ha ingresado su CHAT_ID.")
+        return
+
     def send_message():
         TOKEN = settings.TELEGRAM_BOT_TOKEN
-        CHAT_ID = settings.TELEGRAM_CHAT_ID
         
         customer_name = payment_record.order.customer.full_name if payment_record.order.customer else "Venta de Mostrador"
         metodo = payment_record.get_payment_method_display()
         ref = payment_record.reference_number
         
-        # Armamos el mensaje con formato Markdown
-        caption = f"🚨 *NUEVO PAGO REPORTADO* 🚨\n\n"
+        caption = f"🚨 *NUEVO PAGO - {store_name.upper()}* 🚨\n\n"
         caption += f"👤 *Cliente:* {customer_name}\n"
         caption += f"💰 *Monto Total:* ${total_amount}\n"
         caption += f"💳 *Método:* {metodo}\n"
         caption += f"🧾 *Ref:* {ref}\n\n"
         
-        # --- CÓDIGO MODIFICADO AQUÍ ---
         if is_bulk and payment_record.transaction_group:
             Payment = payment_record.__class__
             
@@ -32,16 +40,14 @@ def send_telegram_receipt_async(payment_record, total_amount, is_bulk=False):
             
             lista_ordenes = [str(p.order.id) for p in pagos_asociados]
             ordenes_str = ", #".join(lista_ordenes)
-            if(len(lista_ordenes) > 1):
+            if len(lista_ordenes) > 1:
                 caption += f"📦 *Tipo:* Pago de Ordenes\n"
                 caption += f"🔗 *Órdenes pagadas:* #{ordenes_str}\n"
             else:
                 caption += f"📦 *Orden:* #{ordenes_str}\n"
         else:
             caption += f"📦 *Orden:* #{payment_record.order.id}\n"
-        # ------------------------------
             
-        # ⚠️ CAMBIA ESTO por tu dominio real de Render
         render_url = "https://crumbcore-app.onrender.com" 
         caption += f"\n👉 [Entrar al Panel de Verificación]({render_url}/orders/)"
 
@@ -58,7 +64,6 @@ def send_telegram_receipt_async(payment_record, total_amount, is_bulk=False):
         try:
             if payment_record.receipt:
                 url = f"https://api.telegram.org/bot{TOKEN}/sendPhoto"
-                # OPTIMIZACIÓN S3: Mandamos la URL en lugar del archivo físico
                 data = {
                     'chat_id': CHAT_ID, 
                     'photo': payment_record.receipt.url, 
@@ -84,7 +89,6 @@ def send_telegram_receipt_async(payment_record, total_amount, is_bulk=False):
         except Exception as e:
             print(f"Error fatal enviando Telegram: {e}")
 
-    # Lanzamos un ÚNICO hilo
     threading.Thread(target=send_message).start()
 
 def enviar_whatsapp_background(telefono_cliente, mensaje):

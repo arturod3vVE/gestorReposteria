@@ -2,7 +2,7 @@ import uuid
 
 from django.shortcuts import render, redirect
 from decimal import Decimal
-from .models import Ingredient, PaymentDestination, Product, Category, RecipeItem, Order, OrderItem, Customer, Payment, ExchangeRate
+from .models import Ingredient, PaymentDestination, Product, Category, RecipeItem, Order, OrderItem, Customer, Payment, ExchangeRate, StoreSettings
 from django.db.models import ProtectedError, Sum, Count, Exists, OuterRef
 from django.utils import timezone
 from datetime import datetime
@@ -1062,3 +1062,17 @@ def send_customer_bulk_whatsapp(request, public_id):
         return JsonResponse({'success': True, 'message': 'Mensaje de estado de cuenta encolado.'})
             
     return JsonResponse({'success': False, 'error': 'Método inválido.'})
+
+@login_required
+def store_settings_view(request):
+    settings, created = StoreSettings.objects.get_or_create(user=request.user)
+    
+    if request.method == 'POST':
+        settings.store_name = request.POST.get('store_name')
+        settings.telegram_chat_id = request.POST.get('telegram_chat_id')
+        settings.save()
+        
+        messages.success(request, "Configuraciones actualizadas correctamente.")
+        return redirect('store_settings')
+        
+    return render(request, 'core/store_settings.html', {'settings': settings})

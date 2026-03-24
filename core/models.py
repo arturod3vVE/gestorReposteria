@@ -3,6 +3,8 @@ from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator
 from decimal import Decimal
 from django.core.exceptions import ValidationError
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from io import BytesIO
 from PIL import Image
 import uuid
@@ -333,3 +335,21 @@ class Payment(models.Model):
                 None
             )
         super().save(*args, **kwargs)
+
+class StoreSettings(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='store_settings')
+    # Solo pedimos el Chat ID
+    telegram_chat_id = models.CharField(max_length=50, blank=True, null=True, help_text="Tu ID de Telegram para recibir notificaciones")
+    store_name = models.CharField(max_length=100, blank=True, null=True, help_text="Nombre comercial de tu tienda")
+
+    def __str__(self):
+        return f"Configuración de {self.user.username}"
+
+@receiver(post_save, sender=User)
+def create_user_store_settings(sender, instance, created, **kwargs):
+    if created:
+        StoreSettings.objects.create(user=instance)
+
+@receiver(post_save, sender=User)
+def save_user_store_settings(sender, instance, **kwargs):
+    instance.store_settings.save()
