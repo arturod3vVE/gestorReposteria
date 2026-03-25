@@ -233,7 +233,7 @@
                     <div class="col-sm-4 mb-2 mb-sm-0 pr-sm-1">
                         <button type="button" 
                             class="btn {% if order.customer and order.customer.phone %}btn-primary{% else %}btn-secondary{% endif %} btn-block shadow-sm h-100 p-2" 
-                            onclick="sharePaymentLink(event, '{{ request.scheme }}://{{ request.get_host }}{% url 'public_payment_link' order.public_id %}', '{% if order.customer %}{{ order.customer.phone|default:'' }}{% endif %}')" 
+                            onclick="handleWhatsAppClick(event, '{{ request.scheme }}://{{ request.get_host }}{% url 'public_payment_link' order.public_id %}', '{% if order.customer %}{{ order.customer.phone|default:'' }}{% endif %}', {{ has_whatsapp_active|yesno:'true,false' }})" 
                             title="{% if order.customer and order.customer.phone %}Enviar Link por WhatsApp{% else %}Copiar Link{% endif %}">
                             
                             {% if order.customer and order.customer.phone %}
@@ -244,76 +244,98 @@
                             
                         </button>
                     </div>
-                    
-                    <div class="col-sm-4 px-sm-1 mb-2 mb-sm-0">
-                        <form method="POST" action="{% url 'quick_cash_payment' order.public_id %}" class="h-100">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-success btn-block shadow-sm h-100 p-2" onclick="return confirm('¿Recibiste el saldo de ${{ order.balance_due_calculated }} en efectivo?');" title="Pago en Efectivo">
-                                <i class="fas fa-money-bill-wave"></i> Efectivo
-                            </button>
-                        </form>
-                    </div>
 
-                    <div class="col-sm-4 pl-sm-1">
-                        <a href="{% url 'verify_order_payments' order.public_id %}" class="btn btn-warning btn-block shadow-sm h-100 text-dark font-weight-bold p-2" title="Ir al Panel de Verificación">
-                            <i class="fas fa-check-double"></i> Verificar
-                        </a>
+                    <div class="modal fade" id="whatsappWarningModal" tabindex="-1" role="dialog" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered" role="document">
+                            <div class="modal-content border-0 shadow">
+                                <div class="modal-header bg-warning text-white">
+                                    <h5 class="modal-title font-weight-bold"><i class="fas fa-exclamation-triangle mr-2"></i>Bot Desconectado</h5>
+                                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                </div>
+                                <div class="modal-body text-center p-4">
+                                    <i class="fab fa-whatsapp fa-4x text-muted mb-3 opacity-50"></i>
+                                    <p class="mb-3 text-gray-800">
+                                        Tu sistema de envíos automáticos por WhatsApp no está vinculado en este momento.
+                                    </p>
+                                    <p class="small text-muted mb-4">
+                                        Puedes enviar el link usando tu propia aplicación de WhatsApp (abrirá WhatsApp Web o la App), o puedes ir a configurarlo para que CrumbCore lo envíe por ti.
+                                    </p>
+                                    
+                                    <div class="d-flex flex-column gap-2">
+                                        <a id="btn-manual-wa" href="#" target="_blank" class="btn btn-success font-weight-bold mb-2">
+                                            <i class="fas fa-external-link-alt mr-1"></i> Enviar yo mismo (WhatsApp Web)
+                                        </a>
+                                        <a href="{% url 'store_settings' %}" class="btn btn-outline-primary font-weight-bold">
+                                            <i class="fas fa-cogs mr-1"></i> Ir a Configuraciones
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-
-    </div>
-</div>
 
 {% block extra_js %}
 <script>
-    // 🧹 Limpieza: Eliminamos getCookie() ya que usamos window.globalCsrfToken de base.html
-
-    function sharePaymentLink(event, url, phone) {
+    function handleWhatsAppClick(event, url, phone, hasActiveBot) {
+        // 1. Siempre copiamos el link al portapapeles por cortesía
         navigator.clipboard.writeText(url).catch(err => console.error("Error copiando: ", err));
 
-        if (phone && phone.trim() !== '' && phone !== 'None') {
-            
-            const btn = event.currentTarget;
-            const originalHtml = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-            btn.disabled = true;
-
-            // 🎯 SEGURIDAD: Ruta interna apuntando al public_id
-            const sendUrl = "{% url 'send_payment_link_whatsapp' order.public_id %}";
-
-            fetch(sendUrl, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': window.globalCsrfToken,
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                btn.innerHTML = originalHtml;
-                btn.disabled = false;
-
-                if (data.success) {
-                    alert("✅ ¡Link enviado automáticamente por WhatsApp!");
-                } else {
-                    alert("⚠️ Link copiado, pero falló el envío automático: " + data.error);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                btn.innerHTML = originalHtml;
-                btn.disabled = false;
-                alert("⚠️ Link copiado. Hubo un error de red al intentar enviar el WhatsApp.");
-            });
-            
+        // 2. Si no tiene teléfono registrado, solo copiamos y avisamos
+        if (!phone || phone.trim() === '' || phone === 'None') {
+            alert("¡Link de pago copiado con éxito! El cliente no tiene teléfono registrado.");
             return;
         }
-        
-        alert("¡Link de pago copiado con éxito! El cliente no tiene teléfono registrado.");
+
+        // 3. SI EL BOT ESTÁ APAGADO -> Mostramos el Modal
+        if (!hasActiveBot) {
+            // Preparamos el mensaje para que el botón de "Enviar yo mismo" ya tenga el texto listo
+            const mensaje = encodeURIComponent(`Hola! 👋 Te comparto el link seguro para realizar el pago de tu orden en nuestra repostería:\n\n${url}`);
+            
+            // Aseguramos que el teléfono esté limpio de caracteres raros
+            const cleanPhone = phone.replace(/\D/g, '');
+            
+            // Actualizamos el link del botón verde del modal
+            document.getElementById('btn-manual-wa').href = `https://wa.me/${cleanPhone}?text=${mensaje}`;
+            
+            // Mostramos el modal de Bootstrap
+            $('#whatsappWarningModal').modal('show');
+            return;
+        }
+
+        // 4. SI EL BOT ESTÁ ENCENDIDO -> Hacemos el envío mágico y automático
+        const btn = event.currentTarget;
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        btn.disabled = true;
+
+        const sendUrl = "{% url 'send_payment_link_whatsapp' order.public_id %}";
+
+        fetch(sendUrl, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': window.globalCsrfToken,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+
+            if (data.success) {
+                alert("✅ ¡Link enviado automáticamente por tu bot de WhatsApp!");
+            } else {
+                alert("⚠️ Link copiado, pero falló el envío automático: " + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+            alert("⚠️ Link copiado. Hubo un error de red al intentar enviar el WhatsApp.");
+        });
     }
 </script>
-{% endblock %}
 {% endblock %}

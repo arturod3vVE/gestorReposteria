@@ -537,12 +537,29 @@ def order_detail(request, public_id):
 
     total_bs = round(order.total_calculated * tasa_dia, 2)
     balance_bs = round(order.balance_due_calculated * tasa_dia, 2)
-    
+    has_whatsapp_active = False
+    try:
+        # Buscamos la configuración de forma segura
+        settings_obj = getattr(request.user, 'store_settings', None)
+        
+        if settings_obj and getattr(settings_obj, 'whatsapp_uuid', None):
+            uuid_secreto = str(settings_obj.whatsapp_uuid)
+            url = f"{settings.WHATSAPP_MICROSERVICE_URL}/session/{uuid_secreto}"
+            
+            # ⏱️ Timeout súper corto (1.5s) para no ralentizar la página si Railway está dormido
+            response = requests.get(url, timeout=1.5) 
+            
+            if response.status_code == 200 and response.json().get('status') == 'CONNECTED':
+                has_whatsapp_active = True
+    except Exception as e:
+        pass
+
     context = {
         'order': order,
         'tasa_dia': tasa_dia,
         'total_bs': total_bs,
-        'balance_bs': balance_bs
+        'balance_bs': balance_bs,
+        'has_whatsapp_active': has_whatsapp_active, # <-- Se lo pasamos al HTML
     }
     
     return render(request, 'core/order_detail.html', context)
