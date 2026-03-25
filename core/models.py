@@ -339,6 +339,7 @@ class Payment(models.Model):
 class StoreSettings(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='store_settings')
     # Solo pedimos el Chat ID
+    whatsapp_uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     telegram_chat_id = models.CharField(max_length=50, blank=True, null=True, help_text="Tu ID de Telegram para recibir notificaciones")
     store_name = models.CharField(max_length=100, blank=True, null=True, help_text="Nombre comercial de tu tienda")
 

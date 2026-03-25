@@ -1118,6 +1118,39 @@ def store_settings_view(request):
         
     return render(request, 'core/store_settings.html', {'settings': settings})
 
+
+@login_required
+def whatsapp_status_api(request):
+    try:
+        settings_obj = request.user.store_settings
+        uuid_secreto = str(settings_obj.whatsapp_uuid)
+        
+        url = f"{settings.WHATSAPP_API_URL}/session/{uuid_secreto}"
+        
+        response = requests.get(url, timeout=10)
+        
+        if response.status_code == 200:
+            return JsonResponse(response.json())
+        return JsonResponse({'status': 'ERROR', 'detail': 'El microservicio no responde'}, status=500)
+    except Exception as e:
+        return JsonResponse({'status': 'ERROR', 'detail': str(e)}, status=500)
+
+@login_required
+@require_POST
+def whatsapp_disconnect_api(request):
+    try:
+        settings_obj = request.user.store_settings
+        uuid_secreto = str(settings_obj.whatsapp_uuid)
+        
+        url = f"{settings.WHATSAPP_API_URL}/session/{uuid_secreto}"
+        response = requests.delete(url, timeout=10)
+        
+        if response.status_code == 200:
+            return JsonResponse({'success': True})
+        return JsonResponse({'success': False}, status=500)
+    except Exception as e:
+        return JsonResponse({'success': False, 'detail': str(e)}, status=500)
+
 @csrf_exempt  # Telegram no envía token CSRF, así que debemos eximir esta vista
 def telegram_webhook_start(request):
     if request.method == 'POST':

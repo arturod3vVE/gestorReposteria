@@ -50,6 +50,8 @@ urlpatterns = [
     path('config/payments/', views.payment_config_list, name='payment_config_list'),
     path('config/payments/<int:pk>/toggle/', views.toggle_payment_destination, name='toggle_payment_destination'),
     path('config/store/', views.store_settings_view, name='store_settings'),
+    path('api/whatsapp/status/', views.whatsapp_status_api, name='whatsapp_status_api'),
+    path('api/whatsapp/disconnect/', views.whatsapp_disconnect_api, name='whatsapp_disconnect_api'),
 
     # URL Secreta para el Webhook de Telegram
     path('tg-webhook-crumbcore-9x8z7y/', views.telegram_webhook, name='telegram_webhook'),

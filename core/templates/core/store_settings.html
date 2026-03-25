@@ -31,7 +31,7 @@
                     <div class="form-group">
                         <label for="store_name" class="font-weight-bold small text-gray-800">Nombre de tu Repostería / Tienda</label>
                         <input type="text" class="form-control" id="store_name" name="store_name" value="{{ settings.store_name|default:'' }}" placeholder="Ej. Dulces Momentos">
-                        <small class="text-muted d-block mt-1">Este nombre aparecerá en los encabezados de los mensajes de Telegram.</small>
+                        <small class="text-muted d-block mt-1">Este nombre aparecerá en los encabezados de los mensajes a tus clientes.</small>
                     </div>
 
                     <hr class="my-4">
@@ -58,19 +58,133 @@
         </div>
     </div>
 
-    <div class="col-lg-6 d-none d-lg-block">
+    <div class="col-lg-6">
+        
         <div class="card shadow mb-4 border-left-success">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-success"><i class="fab fa-whatsapp mr-2"></i>Bot de WhatsApp</h6>
+                <span id="wa-badge" class="badge badge-secondary">Consultando...</span>
+            </div>
+            <div class="card-body text-center p-4">
+                
+                <div id="wa-container">
+                    <div class="spinner-border text-success mb-3" role="status"></div>
+                    <p class="text-muted small">Conectando con el servidor seguro...</p>
+                </div>
+
+                <button id="btn-disconnect-wa" class="btn btn-outline-danger btn-sm mt-3 w-100" style="display: none;">
+                    <i class="fas fa-sign-out-alt mr-1"></i> Desvincular Teléfono
+                </button>
+
+            </div>
+        </div>
+
+        <div class="card shadow mb-4 border-left-primary d-none d-lg-block">
             <div class="card-body text-center p-5">
-                <i class="fas fa-bell fa-4x text-success mb-4" style="opacity: 0.5;"></i>
-                <h4 class="font-weight-bold text-gray-800 mb-3">Mantente siempre informado</h4>
+                <i class="fas fa-bell fa-4x text-primary mb-4" style="opacity: 0.5;"></i>
+                <h4 class="font-weight-bold text-gray-800 mb-3">Tu negocio en piloto automático</h4>
                 <p class="text-muted">
-                    Al vincular tu cuenta de Telegram, recibirás alertas automáticas e instantáneas cada vez que un cliente reporte un nuevo pago en tu enlace público.
+                    Al vincular tus cuentas de mensajería, recibirás alertas automáticas de pagos por Telegram y tus clientes recibirán actualizaciones de sus pedidos directamente a su WhatsApp.
                 </p>
                 <p class="text-muted mb-0">
-                    ¡Aprobar pagos nunca fue tan rápido!
+                    ¡Brinda una experiencia de compra de otro nivel!
                 </p>
             </div>
         </div>
+
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        let pollingInterval = null;
+
+        function checkWhatsAppStatus() {
+            $.ajax({
+                url: "{% url 'whatsapp_status_api' %}",
+                type: "GET",
+                success: function(response) {
+                    const status = response.status;
+                    const container = $("#wa-container");
+                    const badge = $("#wa-badge");
+                    const btnDisconnect = $("#btn-disconnect-wa");
+
+                    if (status === 'STARTING' || status === 'RECONNECTING') {
+                        badge.removeClass().addClass("badge badge-warning").text("Iniciando Motor...");
+                        container.html(`
+                            <div class="spinner-grow text-warning mb-3" role="status"></div>
+                            <p class="text-muted small font-weight-bold mb-0">Preparando tu sesión segura...</p>
+                            <p class="text-xs text-muted">Esto toma unos segundos.</p>
+                        `);
+                        btnDisconnect.hide();
+                    } 
+                    else if (status === 'QR_READY') {
+                        badge.removeClass().addClass("badge badge-primary").text("Esperando Escaneo");
+                        container.html(`
+                            <img src="${response.qr}" alt="Código QR WhatsApp" class="img-fluid rounded border shadow-sm mb-3" style="max-width: 220px;">
+                            <p class="text-muted small mb-0">Abre WhatsApp en tu teléfono</p>
+                            <p class="text-muted small mb-0"><strong>Dispositivos Vinculados > Vincular Dispositivo</strong></p>
+                        `);
+                        btnDisconnect.hide();
+                    }
+                    else if (status === 'CONNECTED') {
+                        badge.removeClass().addClass("badge badge-success").text("¡Conectado!");
+                        container.html(`
+                            <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+                            <h5 class="font-weight-bold text-gray-800">Servicio Activo</h5>
+                            <p class="text-muted small mb-0">CrumbCore enviará notificaciones desde tu número.</p>
+                        `);
+                        btnDisconnect.show();
+                        
+                        // Si ya se conectó, dejamos de preguntar cada 3 segundos para no saturar
+                        if (pollingInterval) {
+                            clearInterval(pollingInterval);
+                            pollingInterval = null;
+                        }
+                    }
+                    else {
+                        badge.removeClass().addClass("badge badge-danger").text("Error");
+                        container.html(`<p class="text-danger small">Error de conexión con el servidor maestro.</p>`);
+                    }
+                },
+                error: function() {
+                    $("#wa-badge").removeClass().addClass("badge badge-danger").text("Desconectado");
+                    $("#wa-container").html(`<p class="text-danger small">No se pudo contactar al servidor de mensajería.</p>`);
+                }
+            });
+        }
+
+        // --- INICIAR EL POLLING ---
+        checkWhatsAppStatus();
+        pollingInterval = setInterval(checkWhatsAppStatus, 3000);
+
+        // --- BOTÓN DE DESVINCULAR ---
+        $("#btn-disconnect-wa").click(function() {
+            if (confirm("¿Estás seguro de que deseas desconectar tu número de WhatsApp de CrumbCore?")) {
+                
+                $(this).html('<i class="fas fa-spinner fa-spin"></i> Desvinculando...').prop('disabled', true);
+
+                $.ajax({
+                    url: "{% url 'whatsapp_disconnect_api' %}",
+                    type: "POST", 
+                    success: function() {
+                        // Ocultamos el botón y reiniciamos el ciclo para que vuelva a pedir un QR
+                        $("#btn-disconnect-wa").hide().html('<i class="fas fa-sign-out-alt mr-1"></i> Desvincular Teléfono').prop('disabled', false);
+                        checkWhatsAppStatus();
+                        // Reiniciamos el polling si estaba detenido
+                        if (!pollingInterval) {
+                            pollingInterval = setInterval(checkWhatsAppStatus, 3000);
+                        }
+                    },
+                    error: function() {
+                        alert("Hubo un error al intentar desconectar. Por favor, recarga la página.");
+                        $("#btn-disconnect-wa").html('<i class="fas fa-sign-out-alt mr-1"></i> Desvincular Teléfono').prop('disabled', false);
+                    }
+                });
+            }
+        });
+    });
+</script>
 {% endblock %}
