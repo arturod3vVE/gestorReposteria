@@ -544,7 +544,7 @@ def order_detail(request, public_id):
         
         if settings_obj and getattr(settings_obj, 'whatsapp_uuid', None):
             uuid_secreto = str(settings_obj.whatsapp_uuid)
-            url = f"{settings.WHATSAPP_MICROSERVICE_URL}/session/{uuid_secreto}"
+            url = f"{settings.WHATSAPP_API_URL}/session/{uuid_secreto}"
             
             # ⏱️ Timeout súper corto (1.5s) para no ralentizar la página si Railway está dormido
             response = requests.get(url, timeout=1.5) 
