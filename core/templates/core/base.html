@@ -17,7 +17,6 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/startbootstrap-sb-admin-2/4.1.4/css/sb-admin-2.min.css" rel="stylesheet">
     <link href="{% static 'css/custom.css' %}" rel="stylesheet">
 
-
     {% block extra_css %}{% endblock %}
 </head>
 
@@ -94,6 +93,12 @@
                 <a class="nav-link" href="{% url 'payment_config_list' %}">
                     <i class="fas fa-fw fa-money-bill"></i>
                     <span>Metodos de Pago</span></a>
+            </li>
+
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'store_settings' %}">
+                    <i class="fas fa-fw fa-store"></i>
+                    <span>Configuración de la Tienda</span></a>
             </li>
 
             <hr class="sidebar-divider d-none d-md-block">
@@ -178,22 +183,9 @@
 
     <script>
         $(document).ready(function() {
-            // 1. Al cargar la página en móvil, nos aseguramos de que empiece cerrado
             if ($(window).width() < 768) {
-                $("body").addClass("sidebar-toggled");
-                $(".sidebar").addClass("toggled");
+                $("#accordionSidebar").addClass("toggled");
             }
-
-            // 2. Le damos la orden al botón hamburguesa para que abra/cierre el menú
-            $("#sidebarToggleTop").on('click', function(e) {
-                $("body").toggleClass("sidebar-toggled");
-                $(".sidebar").toggleClass("toggled");
-                
-                // Si el menú tiene submenús abiertos, los cierra al colapsar
-                if ($(".sidebar").hasClass("toggled")) {
-                    $('.sidebar .collapse').collapse('hide');
-                };
-            });
         });
     </script>
 
