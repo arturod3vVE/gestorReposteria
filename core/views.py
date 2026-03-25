@@ -394,7 +394,15 @@ def create_order(request):
                 f"{link_pago}\n\n"
                 f"¡Gracias por preferirnos! 🍪"
             )
-            enviar_whatsapp_background(order.customer.phone, mensaje)
+            
+            store_uuid = None
+            if hasattr(request.user, 'store_settings'):
+                store_uuid = request.user.store_settings.whatsapp_uuid
+                
+            if store_uuid:
+                enviar_whatsapp_background(order.customer.phone, mensaje, store_uuid)
+            else:
+                print(f"⚠️ Orden {order.id} creada, pero no se envió WhatsApp porque la tienda no tiene UUID configurado.")
 
         messages.success(request, f'Orden #{order.id} creada exitosamente.')
         return redirect('order_list')
@@ -1091,11 +1099,22 @@ def send_payment_link_whatsapp(request, public_id):
         if not order.customer or not order.customer.phone:
             return JsonResponse({'success': False, 'error': 'El cliente no tiene teléfono registrado.'})
 
+        store_uuid = None
+        if hasattr(request.user, 'store_settings'):
+            store_uuid = request.user.store_settings.whatsapp_uuid
+            
+        if not store_uuid:
+            return JsonResponse({
+                'success': False, 
+                'error': 'No tienes tu bot de WhatsApp configurado. Ve a Configuraciones.'
+            })
+
         payment_link = request.build_absolute_uri(reverse('public_payment_link', args=[order.public_id]))
         name = order.customer.full_name or "Cliente"
-        message = f"¡Hola {name}! 👋\n\nAquí tienes el enlace para reportar el pago de tu orden #{order.id}:\n{payment_link}\n\nGracias por preferir a CrumbCore. 🍪"
+        message = f"¡Hola {name}! 👋\n\nAquí tienes el enlace para reportar el pago de tu orden #{order.id}:\n{payment_link}\n\nGracias por preferirnos. 🍪"
 
-        enviar_whatsapp_background(order.customer.phone, message)
+        # 🎯 NUEVO: Pasamos el UUID secreto a la función de fondo
+        enviar_whatsapp_background(order.customer.phone, message, store_uuid)
         
         return JsonResponse({'success': True, 'message': 'Mensaje enviado a la cola en segundo plano.'})
             
@@ -1110,12 +1129,29 @@ def send_customer_bulk_whatsapp(request, public_id):
         if not customer.phone:
             return JsonResponse({'success': False, 'error': 'El cliente no tiene teléfono registrado.'})
 
+        # 🎯 NUEVO: Validar y obtener el UUID de la tienda
+        store_uuid = None
+        if hasattr(request.user, 'store_settings'):
+            store_uuid = request.user.store_settings.whatsapp_uuid
+            
+        if not store_uuid:
+            return JsonResponse({
+                'success': False, 
+                'error': 'No tienes tu bot de WhatsApp configurado. Ve a Configuraciones.'
+            })
+
         bulk_payment_link = request.build_absolute_uri(reverse('customer_bulk_payment', args=[customer.public_id]))
         name = customer.full_name or "Cliente"
         
-        message = f"¡Hola {name}! 👋\n\nAquí tienes el enlace para ver tu estado de cuenta y pagar tus órdenes pendientes en un solo paso:\n{bulk_payment_link}\n\nGracias por preferir a CrumbCore. 🍪"
+        message = (
+            f"¡Hola {name}! 👋\n\n"
+            f"Aquí tienes el enlace para ver tu estado de cuenta y pagar todas tus órdenes pendientes en un solo paso:\n"
+            f"{bulk_payment_link}\n\n"
+            f"¡Gracias por preferirnos! 🍪"
+        )
 
-        enviar_whatsapp_background(customer.phone, message)
+        # 🎯 NUEVO: Enviamos usando el UUID de la sesión de esta tienda
+        enviar_whatsapp_background(customer.phone, message, store_uuid)
         
         return JsonResponse({'success': True, 'message': 'Mensaje de estado de cuenta encolado.'})
             
