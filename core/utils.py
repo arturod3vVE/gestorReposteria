@@ -91,24 +91,27 @@ def send_telegram_receipt_async(payment_record, total_amount, is_bulk=False):
 
     threading.Thread(target=send_message).start()
 
-def enviar_whatsapp_background(telefono_cliente, mensaje):
+def enviar_whatsapp_background(telefono_cliente, mensaje, store_uuid):
     def send_task():
-        base_url = settings.WHATSAPP_API_URL
+        base_url = getattr(settings, 'WHATSAPP_API_URL', None)
         if not base_url:
-            print("Error: No se ha configurado WHATSAPP_API_URL")
+            print("❌ Error: No se ha configurado WHATSAPP_API_URL en settings.py")
             return
 
         endpoint = f"{base_url}/send"
         
-        # 2. Limpiamos el teléfono
+        # Limpiamos el teléfono (dejar solo números)
         telefono_limpio = ''.join(filter(str.isdigit, str(telefono_cliente)))
         
+        # 🎯 NUEVO: Agregamos el store_id al payload
         payload = {
             "phone": telefono_limpio,
-            "message": mensaje
+            "message": mensaje,
+            "store_id": str(store_uuid) 
         }
         
         try:
+            # Hacemos la petición POST al microservicio de Node.js
             response = requests.post(endpoint, json=payload, timeout=30)
             
             if response.status_code == 200:
@@ -117,8 +120,9 @@ def enviar_whatsapp_background(telefono_cliente, mensaje):
                 print(f"❌ Error del microservicio ({response.status_code}): {response.text}")
                 
         except requests.exceptions.Timeout:
-            print("⚠️ El microservicio tardó demasiado en responder (posiblemente estaba hibernando).")
+            print("⚠️ El microservicio tardó demasiado en responder (Railway posiblemente hibernando).")
         except Exception as e:
-            print(f"❌ Error de conexión con el microservicio: {e}")
+            print(f"❌ Error de conexión con el microservicio de WhatsApp: {e}")
 
+    # Lanzamos el hilo para no congelar la pantalla de carga del cliente
     threading.Thread(target=send_task).start()
