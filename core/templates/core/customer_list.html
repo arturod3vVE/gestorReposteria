@@ -34,13 +34,12 @@
             text-align: left; 
             margin-right: 15px; 
         }
-        /* Ajuste específico para agrupar los botones a la derecha */
         .table-mobile-cards td.acciones-td {
             justify-content: flex-end;
             gap: 8px;
         }
         .table-mobile-cards td.acciones-td::before {
-            margin-right: auto; /* Empuja el label a la izquierda y los botones a la derecha */
+            margin-right: auto;
         }
     }
 </style>
@@ -106,22 +105,26 @@
                             {% if customer.phone %}<i class="fas fa-phone fa-sm text-muted mr-1"></i> {{ customer.phone }}<br>{% endif %}
                             {% if customer.email %}<i class="fas fa-envelope fa-sm text-muted mr-1"></i> {{ customer.email }}{% endif %}
                         </td>
-                        <td data-label="Dirección" class="align-middle small">{{ customer.delivery_address|default:"<span class='text-muted font-italic'>No registrada</span>"|safe }}</td>
+                        <td data-label="Dirección" class="align-middle small">{{ customer.delivery_address|default:"<span class='text-muted font-italic small'>No registrada</span>"|safe }}</td>
                         <td data-label="Pedidos" class="align-middle text-center">
                             <span class="badge badge-{% if customer.total_orders > 0 %}success{% else %}secondary{% endif %} px-2 py-1">
                                 {{ customer.total_orders }}
                             </span>
                         </td>
                         <td data-label="Acciones" class="align-middle text-center acciones-td">
-                            <button type="button" class="btn btn-success btn-circle btn-sm shadow-sm mr-1" title="Enviar Estado de Cuenta" onclick="shareBulkPaymentLink(event, '{% url 'send_customer_bulk_whatsapp' customer.public_id %}', '{{ request.scheme }}://{{ request.get_host }}{% url 'customer_bulk_payment' customer.public_id %}', '{{ customer.phone|default:'' }}')">
+                            <button type="button" class="btn btn-success btn-circle btn-sm shadow-sm mr-1" 
+                                title="Enviar Estado de Cuenta" 
+                                onclick="shareBulkPaymentLink(event, '{% url 'send_customer_bulk_whatsapp' customer.public_id %}', '{{ request.scheme }}://{{ request.get_host }}{% url 'customer_bulk_payment' customer.public_id %}', '{{ customer.phone|default:'' }}', {{ has_whatsapp_active|yesno:'true,false' }})">
                                 <i class="{% if customer.phone %}fab fa-whatsapp{% else %}fas fa-link{% endif %}"></i>
                             </button>
+                            
                             <a href="{% url 'edit_customer' customer.public_id %}" class="btn btn-warning btn-circle btn-sm shadow-sm" title="Editar Cliente">
                                 <i class="fas fa-edit"></i>
                             </a>
+                            
                             <form method="POST" action="{% url 'delete_customer' customer.public_id %}" class="d-inline">
                                 {% csrf_token %}
-                                <button type="submit" class="btn btn-danger btn-circle btn-sm shadow-sm ml-1" title="Eliminar Cliente" onclick="return confirm('¿Estás seguro de eliminar a {{ customer.full_name|escapejs }}? Sus órdenes previas se mantendrán en el sistema.');">
+                                <button type="submit" class="btn btn-danger btn-circle btn-sm shadow-sm ml-1" title="Eliminar Cliente" onclick="return confirm('¿Estás seguro de eliminar a {{ customer.full_name|escapejs }}?');">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </form>
@@ -133,85 +136,89 @@
                 </tbody>
             </table>
         </div>
-
-        {% if customers.has_other_pages %}
-        <nav aria-label="Navegación de clientes" class="mt-4">
-            <ul class="pagination justify-content-center">
-                {% if customers.has_previous %}
-                    <li class="page-item">
-                        <a class="page-link shadow-sm" href="?page={{ customers.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">Anterior</a>
-                    </li>
-                {% else %}
-                    <li class="page-item disabled"><span class="page-link text-muted">Anterior</span></li>
-                {% endif %}
-
-                {% for i in customers.paginator.page_range %}
-                    {% if customers.number == i %}
-                        <li class="page-item active shadow-sm"><span class="page-link">{{ i }}</span></li>
-                    {% else %}
-                        <li class="page-item">
-                            <a class="page-link shadow-sm" href="?page={{ i }}{% if search_query %}&search={{ search_query }}{% endif %}">{{ i }}</a>
-                        </li>
-                    {% endif %}
-                {% endfor %}
-
-                {% if customers.has_next %}
-                    <li class="page-item">
-                        <a class="page-link shadow-sm" href="?page={{ customers.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">Siguiente</a>
-                    </li>
-                {% else %}
-                    <li class="page-item disabled"><span class="page-link text-muted">Siguiente</span></li>
-                {% endif %}
-            </ul>
-        </nav>
-        {% endif %}
-
     </div>
 </div>
 
+<div class="modal fade" id="whatsappWarningModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-warning text-white">
+                <h5 class="modal-title font-weight-bold"><i class="fas fa-exclamation-triangle mr-2"></i>Bot Desconectado</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body text-center p-4">
+                <i class="fab fa-whatsapp fa-4x text-muted mb-3 opacity-50"></i>
+                <p class="mb-3 text-gray-800">
+                    Tu sistema de envíos automáticos por WhatsApp no está vinculado.
+                </p>
+                <div class="d-flex flex-column gap-2">
+                    <a id="btn-manual-wa" href="#" target="_blank" class="btn btn-success font-weight-bold mb-2">
+                        <i class="fas fa-external-link-alt mr-1"></i> Enviar yo mismo (WhatsApp Web)
+                    </a>
+                    <a href="{% url 'store_settings' %}" class="btn btn-outline-primary font-weight-bold">
+                        <i class="fas fa-cogs mr-1"></i> Ir a Configuraciones
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
 {% block extra_js %}
 <script>
-    // Como ya tienes el CSRF global en base.html, simplifiqué la llamada AJAX 
-    // para que use window.globalCsrfToken y quede más limpio.
-    
-    function shareBulkPaymentLink(event, sendUrl, publicLink, phone) {
-        navigator.clipboard.writeText(publicLink).catch(err => console.error("Error copiando al portapapeles: ", err));
+    function shareBulkPaymentLink(event, sendUrl, publicLink, phone, hasActiveBot) {
+        // 1. Siempre copiamos el link por cortesía
+        navigator.clipboard.writeText(publicLink).catch(err => console.error("Error copiando: ", err));
 
-        if (phone && phone.trim() !== '' && phone !== 'None') {
-            const btn = event.currentTarget;
-            const originalHtml = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-            btn.disabled = true;
-
-            fetch(sendUrl, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': window.globalCsrfToken, // Usando el token global que inyectamos antes
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                btn.innerHTML = originalHtml;
-                btn.disabled = false;
-
-                if (data.success) {
-                    alert("✅ ¡Estado de cuenta enviado automáticamente por WhatsApp!");
-                } else {
-                    alert("⚠️ Link copiado, pero falló el envío: " + data.error);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                btn.innerHTML = originalHtml;
-                btn.disabled = false;
-                alert("⚠️ Link copiado. Error de red al intentar enviar el WhatsApp.");
-            });
+        // 2. Si no hay teléfono, solo avisamos que se copió el link
+        if (!phone || phone.trim() === '' || phone === 'None') {
+            alert("¡Link de estado de cuenta copiado! El cliente no tiene teléfono registrado.");
             return;
         }
-        
-        alert("¡Link de estado de cuenta copiado con éxito! El cliente no tiene teléfono registrado.");
+
+        // 3. SI EL BOT ESTÁ APAGADO -> Mostrar el Modal para envío manual
+        if (!hasActiveBot) {
+            const mensaje = encodeURIComponent(`¡Hola! 👋 Te comparto el enlace para que puedas revisar tu estado de cuenta y pagar tus órdenes pendientes en un solo paso:\n\n${publicLink}`);
+            const cleanPhone = phone.replace(/\D/g, '');
+            document.getElementById('btn-manual-wa').href = `https://wa.me/${cleanPhone}?text=${mensaje}`;
+            $('#whatsappWarningModal').modal('show');
+            return;
+        }
+
+        // 4. SI EL BOT ESTÁ ENCENDIDO -> Envío automático por el microservicio
+        const btn = event.currentTarget;
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        btn.disabled = true;
+
+        fetch(sendUrl, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': window.globalCsrfToken,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+
+            if (data.success) {
+                alert("✅ ¡Estado de cuenta enviado automáticamente por WhatsApp!");
+            } else {
+                alert("⚠️ Link copiado, pero falló el envío automático: " + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+            alert("⚠️ Link copiado. Hubo un error de red.");
+        });
     }
 </script>
-{% endblock %}
 {% endblock %}
