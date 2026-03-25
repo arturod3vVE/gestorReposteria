@@ -96,7 +96,7 @@
             <div class="card-body">
                 <div class="table-responsive">
                     <table class="table table-bordered table-mobile-cards">
-                        <thead class="bg-light">
+                        <thead class="bg-light text-gray-800 font-weight-bold small uppercase">
                             <tr>
                                 <th>Producto</th>
                                 <th class="text-center">Cant.</th>
@@ -112,9 +112,11 @@
                                 <td data-label="Precio" class="text-right">${{ item.unit_price }}</td>
                                 <td data-label="Subtotal" class="text-right font-weight-bold text-gray-800">${{ item.subtotal }}</td>
                             </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center py-3 text-muted">No hay productos.</td></tr>
                             {% endfor %}
                         </tbody>
-                        <tfoot class="bg-light font-weight-bold">
+                        <tfoot class="bg-light font-weight-bold text-gray-800">
                             <tr>
                                 <td colspan="3" class="text-right d-none d-md-table-cell">Monto Total:</td>
                                 <td class="text-right">
@@ -130,35 +132,42 @@
 
         <div class="card shadow mb-4">
             <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-gray-800">Instrucciones Especiales</h6></div>
-            <div class="card-body"><p class="mb-0 text-gray-700 font-italic">{{ order.special_notes|default:"Sin notas." }}</p></div>
+            <div class="card-body"><p class="mb-0 text-gray-700 font-italic">{{ order.special_notes|default:"No hay instrucciones especiales." }}</p></div>
         </div>
     </div>
 
     <div class="col-lg-4">
         <div class="card shadow mb-4">
-            <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Cliente</h6></div>
+            <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Detalles del Cliente</h6></div>
             <div class="card-body">
                 {% if order.customer %}
                     <h5 class="font-weight-bold text-gray-800 mb-1">{{ order.customer.full_name }}</h5>
-                    <p class="mb-1 small"><i class="fas fa-phone mr-2"></i>{{ order.customer.phone|default:"N/A" }}</p>
-                    <p class="mb-1 small"><i class="fas fa-envelope mr-2"></i>{{ order.customer.email|default:"N/A" }}</p>
+                    <p class="mb-1 text-gray-600 small"><i class="fas fa-phone mr-2"></i>{{ order.customer.phone|default:"N/A" }}</p>
+                    <hr>
+                    <p class="small text-muted mb-0 font-weight-bold">Entrega:</p>
+                    <p class="small text-gray-800">{{ order.customer.delivery_address|default:"Recoger en tienda" }}</p>
                 {% else %}
-                    <p class="text-muted small mb-0">Venta al contado.</p>
+                    <p class="text-muted small mb-0">Cliente al contado.</p>
                 {% endif %}
             </div>
         </div>
 
         <div class="card shadow mb-4">
-            <div class="card-header py-3 d-flex justify-content-between">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
                 <h6 class="m-0 font-weight-bold text-success">Pagos</h6>
-                <span class="badge badge-info">{{ order.get_payment_status_display }}</span>
+                <span class="badge badge-{% if order.payment_status == 'PAID' %}success{% elif order.payment_status == 'PENDING' %}danger{% else %}info{% endif %}">
+                    {{ order.get_payment_status_display }}
+                </span>
             </div>
             <div class="card-body p-0">
                 <ul class="list-group list-group-flush">
                     {% for payment in order.payments.all %}
-                    <li class="list-group-item d-flex justify-content-between small">
-                        <span>{{ payment.get_payment_method_display }}<br><small>{{ payment.reported_at|date:"d/m/Y" }}</small></span>
-                        <span class="text-success font-weight-bold">${{ payment.amount }}</span>
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                        <div class="small">
+                            <span class="font-weight-bold d-block">{{ payment.get_payment_method_display }}</span>
+                            <span class="text-xs text-muted">{{ payment.reported_at|date:"d/m/Y" }}</span>
+                        </div>
+                        <span class="text-success font-weight-bold small">${{ payment.amount }}</span>
                     </li>
                     {% empty %}
                     <li class="list-group-item text-center text-muted small py-3">Sin pagos registrados.</li>
@@ -167,7 +176,7 @@
             </div>
             <div class="card-footer bg-light">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <span class="font-weight-bold small">Saldo Pendiente:</span>
+                    <span class="font-weight-bold small text-gray-700">Saldo Pendiente:</span>
                     <div class="text-right">
                         <div class="h5 mb-0 font-weight-bold {% if order.balance_due_calculated > 0 %}text-danger{% else %}text-success{% endif %}">
                             ${{ order.balance_due_calculated }}
@@ -216,26 +225,25 @@
             </div>
             <div class="modal-body text-center p-4">
                 <i class="fab fa-whatsapp fa-4x text-muted mb-3 opacity-50"></i>
-                <p class="mb-3 text-gray-800">Tu bot automático no está vinculado.</p>
-                <div class="d-flex flex-column">
+                <p class="mb-3 text-gray-800">Tu sistema de envíos automáticos no está vinculado.</p>
+                <div class="d-flex flex-column gap-2">
                     <a id="btn-manual-wa" href="#" target="_blank" class="btn btn-success font-weight-bold mb-2">
                         <i class="fas fa-external-link-alt mr-1"></i> Enviar vía WhatsApp Web
                     </a>
-                    <a href="{% url 'store_settings' %}" class="btn btn-outline-primary btn-sm">
-                        Ir a Configuraciones
+                    <a href="{% url 'store_settings' %}" class="btn btn-outline-primary btn-sm font-weight-bold">
+                        <i class="fas fa-cogs mr-1"></i> Ir a Configuraciones
                     </a>
                 </div>
             </div>
         </div>
     </div>
 </div>
-
 {% endblock %}
 
 {% block extra_js %}
 <script>
     function handleWhatsAppClick(event, url, phone, hasActiveBot) {
-        navigator.clipboard.writeText(url);
+        navigator.clipboard.writeText(url).catch(err => console.error("Error copiando: ", err));
 
         if (!phone || phone.trim() === '' || phone === 'None') {
             alert("¡Link copiado! (El cliente no tiene teléfono)");
@@ -266,13 +274,13 @@
         .then(data => {
             btn.innerHTML = originalHtml;
             btn.disabled = false;
-            if (data.success) alert("✅ ¡Enviado automáticamente!");
+            if (data.success) alert("✅ ¡Link enviado automáticamente!");
             else alert("⚠️ Error: " + data.error);
         })
         .catch(() => {
             btn.innerHTML = originalHtml;
             btn.disabled = false;
-            alert("⚠️ Error de red.");
+            alert("⚠️ Error de red al intentar enviar.");
         });
     }
 </script>
