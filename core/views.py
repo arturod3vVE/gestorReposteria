@@ -957,86 +957,74 @@ def delete_product(request, pk):
 @csrf_exempt
 def telegram_webhook(request, token=None):
     if request.method == 'POST':
-        # Inicializamos chat_id como None para evitar el error de "local variable"
-        chat_id = None 
-        
+        chat_id = None
         try:
             update = json.loads(request.body.decode('utf-8'))
             TOKEN = settings.TELEGRAM_BOT_TOKEN
 
-            # ==========================================
-            # 1. EXTRACCIÓN SEGURA DEL CHAT_ID
-            # ==========================================
-            if 'callback_query' in update:
-                chat_id = update['callback_query']['message']['chat']['id']
-            elif 'message' in update:
-                chat_id = update['message']['chat']['id']
-            elif 'edited_message' in update:
-                chat_id = update['edited_message']['chat']['id']
-
-            # Si no logramos detectar un chat_id, ignoramos este update silenciosamente
-            if chat_id is None:
-                return JsonResponse({"status": "ignored_no_chat_id"})
-
-            # Convertimos a string para comparar con la base de datos
-            str_chat_id = str(chat_id).strip()
-
-            # ==========================================
-            # 2. PROCESAR BOTONES (Callback Queries)
-            # ==========================================
             if 'callback_query' in update:
                 callback = update['callback_query']
+                chat_id = callback['message']['chat']['id']
                 message_id = callback['message']['message_id']
-                data = callback['data'] 
+                user_who_clicked_id = str(callback['from']['id'])
+                data = callback['data']
                 
-                # Extraemos la acción y el pago
+                # 1. Obtener el pago
                 try:
                     action_short, payment_id = data.split('_')
                     payment = Payment.objects.get(id=payment_id)
-                    tienda_owner = payment.order.user
-                    config = tienda_owner.store_settings
+                    config = payment.order.user.store_settings
                     
-                    # 🔒 SEGURIDAD POR GRUPO: Comparamos el chat_id del grupo
-                    if not config.telegram_chat_id or str_chat_id != str(config.telegram_chat_id).strip():
-                        print(f"⚠️ Chat no autorizado: {str_chat_id} intentó gestionar pago de {tienda_owner.username}")
+                    # 🔒 SEGURIDAD (Validamos el ID del chat del grupo/usuario)
+                    if not config.telegram_chat_id or str(chat_id) != str(config.telegram_chat_id).strip():
                         requests.get(f"https://api.telegram.org/bot{TOKEN}/answerCallbackQuery", 
-                                     params={
-                                         'callback_query_id': callback['id'], 
-                                         'text': '❌ Este grupo no está autorizado para este pago.', 
-                                         'show_alert': True
-                                     })
+                                     params={'callback_query_id': callback['id'], 'text': '❌ Chat no autorizado.', 'show_alert': True})
                         return JsonResponse({"status": "unauthorized"})
 
-                    # Ejecutamos la acción
+                    # 2. EJECUTAR ACCIÓN (Esto es lo que ya te funciona)
                     action_full = 'approve' if action_short == 'app' else 'reject'
                     success, result_message = process_payment_action(payment, action_full)
                     
-                    # Formatear respuesta visual
-                    estado_emoji = "✅" if success and action_full == 'approve' else "🗑️" if success else "❌"
+                    # 3. PREPARAR EL NUEVO TEXTO
+                    estado_emoji = "✅" if action_full == 'approve' else "🗑️"
+                    # Importante: Limpiamos el texto de posibles caracteres que rompan el Markdown
+                    result_clean = result_message.replace("_", "\\_").replace("*", "\\*")
+                    
+                    # Detectar si es foto o texto
                     is_photo = 'caption' in callback['message']
                     original_text = callback['message'].get('caption', callback['message'].get('text', ''))
-                    nuevo_texto = f"{original_text}\n\n{estado_emoji} *{result_message}*"
+                    
+                    # Construimos el texto final como lo hacía antes
+                    nuevo_texto = f"{original_text}\n\n{estado_emoji} *{result_clean}*"
 
-                    # Notificar a Telegram y editar mensaje
+                    # 4. INFORMAR A TELEGRAM (Quitar el reloj de carga del botón)
                     requests.get(f"https://api.telegram.org/bot{TOKEN}/answerCallbackQuery?callback_query_id={callback['id']}")
                     
+                    # 5. ACTUALIZAR EL MENSAJE VISUALMENTE
+                    # Quitamos los botones enviando un inline_keyboard vacío
                     payload = {
-                        'chat_id': chat_id, 
-                        'message_id': message_id, 
+                        'chat_id': chat_id,
+                        'message_id': message_id,
                         'parse_mode': 'Markdown',
                         'reply_markup': json.dumps({'inline_keyboard': []}) 
                     }
                     
-                    endpoint = "editMessageCaption" if is_photo else "editMessageText"
-                    if is_photo: payload['caption'] = nuevo_texto
-                    else: payload['text'] = nuevo_texto
+                    if is_photo:
+                        payload['caption'] = nuevo_texto
+                        url_edit = f"https://api.telegram.org/bot{TOKEN}/editMessageCaption"
+                    else:
+                        payload['text'] = nuevo_texto
+                        url_edit = f"https://api.telegram.org/bot{TOKEN}/editMessageText"
                     
-                    requests.post(f"https://api.telegram.org/bot{TOKEN}/{endpoint}", json=payload)
+                    response_edit = requests.post(url_edit, json=payload)
+                    
+                    # Log para debug en caso de que no cambie el estado
+                    if response_edit.status_code != 200:
+                        print(f"❌ Error al editar mensaje en Telegram: {response_edit.text}")
 
-                except Exception as inner_e:
-                    print(f"Error interno procesando callback: {inner_e}")
+                except Payment.DoesNotExist:
                     requests.get(f"https://api.telegram.org/bot{TOKEN}/answerCallbackQuery", 
-                                 params={'callback_query_id': callback['id'], 'text': '❌ Error al procesar el pago.', 'show_alert': True})
+                                 params={'callback_query_id': callback['id'], 'text': '❌ El pago ya no existe.', 'show_alert': True})
 
             # ==========================================
             # 3. PROCESAR COMANDOS DE TEXTO
