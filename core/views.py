@@ -600,78 +600,86 @@ def order_invoice(request, public_id):
 
 
 def public_payment_link(request, public_id):
-    order = get_object_or_404(Order, public_id=public_id)
-    tenant = order.user
+    # Cambiamos get_object_or_404 por filter().first() para evitar el error 404
+    order = Order.objects.filter(public_id=public_id).first()
     
-    amount_pending = order.amount_pending
-    max_reportable = order.balance_due_calculated - Decimal(amount_pending)
-    if max_reportable < 0:
-        max_reportable = Decimal('0.00')
-
-    if request.method == 'POST':
-        if order.status == 'CANCELLED':
-            messages.error(request, 'Acción denegada: Esta orden ha sido cancelada y no admite nuevos pagos.')
-            return redirect('public_payment_link', public_id=order.public_id)
-
-        if max_reportable > 0:
-            amount_str = request.POST.get('amount')
-            payment_method = request.POST.get('payment_method')
-            reference_number = request.POST.get('reference_number')
-            receipt_file = request.FILES.get('receipt')
-            
-            destination_id = request.POST.get('destination_id')
-            destination_obj = None
-            if destination_id:
-                destination_obj = PaymentDestination.objects.filter(id=destination_id, user=tenant).first()
-
-            client_amount = Decimal(amount_str)
-            if client_amount > max_reportable:
-                client_amount = max_reportable
-
-            tiempo_limite = timezone.now() - timedelta(minutes=2)
-            
-            es_duplicado = Payment.objects.filter(
-                order=order,
-                amount=client_amount,
-                reference_number=reference_number,
-                reported_at__gte=tiempo_limite
-            ).exists()
-
-            if es_duplicado:
-                return redirect('public_payment_link', public_id=order.public_id)
-
-            new_payment = Payment.objects.create(
-                order=order,
-                payment_method=payment_method,
-                destination=destination_obj, 
-                amount=client_amount,
-                reference_number=reference_number,
-                receipt=receipt_file,
-                is_verified=False 
-            )
-            
-            send_telegram_receipt_async(new_payment, new_payment.amount, is_bulk=False)
-            
-            messages.success(request, '¡Tu pago ha sido reportado exitosamente! Lo verificaremos en breve.')
-            return redirect('public_payment_link', public_id=order.public_id)
-            
-    ultima_tasa = ExchangeRate.objects.filter(user=tenant).order_by('-created_at').first()
-    tasa_dia = ultima_tasa.rate if ultima_tasa else Decimal('1.00')
-
-    balance_bs = round(order.balance_due_calculated * tasa_dia, 2)
-    max_reportable_bs = round(max_reportable * tasa_dia, 2)
-
-    destinations = PaymentDestination.objects.filter(user=tenant, is_active=True).order_by('destination_type')
-
+    # Inicializamos variables por defecto por si la orden no existe
     context = {
         'order': order,
-        'tasa_dia': tasa_dia,
-        'balance_bs': balance_bs,
-        'amount_pending': amount_pending,
-        'max_reportable': max_reportable,
-        'max_reportable_bs': max_reportable_bs,
-        'destinations': destinations
     }
+
+    if order:
+        tenant = order.user
+        amount_pending = order.amount_pending
+        max_reportable = order.balance_due_calculated - Decimal(amount_pending)
+        if max_reportable < 0:
+            max_reportable = Decimal('0.00')
+
+        if request.method == 'POST':
+            if order.status == 'CANCELLED':
+                messages.error(request, 'Acción denegada: Esta orden ha sido cancelada y no admite nuevos pagos.')
+                return redirect('public_payment_link', public_id=order.public_id)
+
+            if max_reportable > 0:
+                amount_str = request.POST.get('amount')
+                payment_method = request.POST.get('payment_method')
+                reference_number = request.POST.get('reference_number')
+                receipt_file = request.FILES.get('receipt')
+                
+                destination_id = request.POST.get('destination_id')
+                destination_obj = None
+                if destination_id:
+                    destination_obj = PaymentDestination.objects.filter(id=destination_id, user=tenant).first()
+
+                client_amount = Decimal(amount_str)
+                if client_amount > max_reportable:
+                    client_amount = max_reportable
+
+                tiempo_limite = timezone.now() - timedelta(minutes=2)
+                
+                es_duplicado = Payment.objects.filter(
+                    order=order,
+                    amount=client_amount,
+                    reference_number=reference_number,
+                    reported_at__gte=tiempo_limite
+                ).exists()
+
+                if es_duplicado:
+                    return redirect('public_payment_link', public_id=order.public_id)
+
+                new_payment = Payment.objects.create(
+                    order=order,
+                    payment_method=payment_method,
+                    destination=destination_obj, 
+                    amount=client_amount,
+                    reference_number=reference_number,
+                    receipt=receipt_file,
+                    is_verified=False 
+                )
+                
+                send_telegram_receipt_async(new_payment, new_payment.amount, is_bulk=False)
+                
+                messages.success(request, '¡Tu pago ha sido reportado exitosamente! Lo verificaremos en breve.')
+                return redirect('public_payment_link', public_id=order.public_id)
+                
+        ultima_tasa = ExchangeRate.objects.filter(user=tenant).order_by('-created_at').first()
+        tasa_dia = ultima_tasa.rate if ultima_tasa else Decimal('1.00')
+
+        balance_bs = round(order.balance_due_calculated * tasa_dia, 2)
+        max_reportable_bs = round(max_reportable * tasa_dia, 2)
+
+        destinations = PaymentDestination.objects.filter(user=tenant, is_active=True).order_by('destination_type')
+
+        # Actualizamos el contexto con los datos de la orden real
+        context.update({
+            'tasa_dia': tasa_dia,
+            'balance_bs': balance_bs,
+            'amount_pending': amount_pending,
+            'max_reportable': max_reportable,
+            'max_reportable_bs': max_reportable_bs,
+            'destinations': destinations
+        })
+    
     return render(request, 'core/public_payment.html', context)
 
 def customer_bulk_payment(request, public_id):
