@@ -954,7 +954,6 @@ def delete_product(request, pk):
             
     return render(request, 'core/product_confirm_delete.html', {'product': product})
 
-
 @csrf_exempt
 def telegram_webhook(request, token=None):
     if request.method == 'POST':
