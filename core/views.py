@@ -966,65 +966,67 @@ def telegram_webhook(request, token=None):
                 callback = update['callback_query']
                 chat_id = callback['message']['chat']['id']
                 message_id = callback['message']['message_id']
-                user_who_clicked_id = str(callback['from']['id'])
                 data = callback['data']
                 
-                # 1. Obtener el pago
                 try:
                     action_short, payment_id = data.split('_')
                     payment = Payment.objects.get(id=payment_id)
                     config = payment.order.user.store_settings
                     
-                    # 🔒 SEGURIDAD (Validamos el ID del chat del grupo/usuario)
+                    # 🔒 SEGURIDAD: Validar Chat ID
                     if not config.telegram_chat_id or str(chat_id) != str(config.telegram_chat_id).strip():
                         requests.get(f"https://api.telegram.org/bot{TOKEN}/answerCallbackQuery", 
-                                     params={'callback_query_id': callback['id'], 'text': '❌ Chat no autorizado.', 'show_alert': True})
+                                     params={'callback_query_id': callback['id'], 'text': '❌ No autorizado.', 'show_alert': True})
                         return JsonResponse({"status": "unauthorized"})
 
-                    # 2. EJECUTAR ACCIÓN (Esto es lo que ya te funciona)
+                    # 1. Ejecutar aprobación/rechazo
                     action_full = 'approve' if action_short == 'app' else 'reject'
                     success, result_message = process_payment_action(payment, action_full)
                     
-                    # 3. PREPARAR EL NUEVO TEXTO
+                    # 2. Limpiar y preparar el texto (Usaremos HTML para evitar errores)
                     estado_emoji = "✅" if action_full == 'approve' else "🗑️"
-                    # Importante: Limpiamos el texto de posibles caracteres que rompan el Markdown
-                    result_clean = result_message.replace("_", "\\_").replace("*", "\\*")
                     
-                    # Detectar si es foto o texto
-                    is_photo = 'caption' in callback['message']
-                    original_text = callback['message'].get('caption', callback['message'].get('text', ''))
+                    # Detectar mensaje original
+                    msg_obj = callback['message']
+                    is_photo = 'caption' in msg_obj
+                    # Obtenemos el texto original y quitamos asteriscos viejos para no duplicar formatos
+                    texto_base = msg_obj.get('caption', msg_obj.get('text', ''))
                     
-                    # Construimos el texto final como lo hacía antes
-                    nuevo_texto = f"{original_text}\n\n{estado_emoji} *{result_clean}*"
+                    # Convertimos el formato de Markdown a HTML simple para la edición
+                    # Reemplazamos los asteriscos de negrita por etiquetas <b>
+                    texto_base_html = texto_base.replace("*", "<b>", 1).replace("*", "</b>", 1) # Ejemplo simple
+                    
+                    # Construimos el mensaje final con HTML
+                    # Usamos <b> en lugar de * para que sea indestructible
+                    nuevo_texto = f"{texto_base}\n\n{estado_emoji} <b>{result_message}</b>"
 
-                    # 4. INFORMAR A TELEGRAM (Quitar el reloj de carga del botón)
+                    # 3. Notificar click
                     requests.get(f"https://api.telegram.org/bot{TOKEN}/answerCallbackQuery?callback_query_id={callback['id']}")
                     
-                    # 5. ACTUALIZAR EL MENSAJE VISUALMENTE
-                    # Quitamos los botones enviando un inline_keyboard vacío
+                    # 4. Editar mensaje con parse_mode='HTML'
                     payload = {
                         'chat_id': chat_id,
                         'message_id': message_id,
-                        'parse_mode': 'Markdown',
+                        'parse_mode': 'HTML', # <--- CAMBIO CLAVE
                         'reply_markup': json.dumps({'inline_keyboard': []}) 
                     }
                     
+                    endpoint = "editMessageCaption" if is_photo else "editMessageText"
                     if is_photo:
                         payload['caption'] = nuevo_texto
-                        url_edit = f"https://api.telegram.org/bot{TOKEN}/editMessageCaption"
                     else:
                         payload['text'] = nuevo_texto
-                        url_edit = f"https://api.telegram.org/bot{TOKEN}/editMessageText"
                     
-                    response_edit = requests.post(url_edit, json=payload)
+                    res = requests.post(f"https://api.telegram.org/bot{TOKEN}/{endpoint}", json=payload)
                     
-                    # Log para debug en caso de que no cambie el estado
-                    if response_edit.status_code != 200:
-                        print(f"❌ Error al editar mensaje en Telegram: {response_edit.text}")
+                    if res.status_code != 200:
+                        print(f"❌ Error Telegram HTML: {res.text}")
+                        # Si falla HTML, intentamos enviarlo como texto plano sin formato para no dejar al usuario colgado
+                        payload['parse_mode'] = '' 
+                        requests.post(f"https://api.telegram.org/bot{TOKEN}/{endpoint}", json=payload)
 
-                except Payment.DoesNotExist:
-                    requests.get(f"https://api.telegram.org/bot{TOKEN}/answerCallbackQuery", 
-                                 params={'callback_query_id': callback['id'], 'text': '❌ El pago ya no existe.', 'show_alert': True})
+                except Exception as e:
+                    print(f"Error interno: {e}")
 
             # ==========================================
             # 3. PROCESAR COMANDOS DE TEXTO
