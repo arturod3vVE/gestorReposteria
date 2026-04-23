@@ -973,11 +973,29 @@ def telegram_webhook(request, token=None):
                 
                 # 🔒 SEGURIDAD MULTI-TENANT: ¿El botón lo pulsó el dueño de este pago?
                 try:
-                    config = StoreSettings.objects.get(telegram_chat_id=str(chat_id))
-                    if payment.user != config.user:
-                        raise Exception("Usuario no coincide")
-                except Exception:
-                    # Si no es el dueño, le mandamos una alerta en pantalla y abortamos
+                    # 1. Obtener el ID de la persona que HIZO CLIC en el botón
+                    user_who_clicked = callback['from']['id']
+                    
+                    # 2. Buscar la configuración de la tienda de esa persona
+                    config = StoreSettings.objects.get(telegram_chat_id=str(user_who_clicked))
+                    
+                    # 3. Verificar si el dueño de la orden es el mismo dueño de esa configuración
+                    # (Cambiado a payment.order.user basado en tu código anterior)
+                    dueño_pago = payment.order.user
+                    
+                    if dueño_pago != config.user:
+                        raise ValueError("El usuario que hizo clic no es el dueño de la tienda de este pago.")
+                        
+                except StoreSettings.DoesNotExist:
+                    print(f"Error de permisos: No hay tienda asociada al chat_id {user_who_clicked}")
+                    requests.get(f"https://api.telegram.org/bot{TOKEN}/answerCallbackQuery", 
+                                 params={'callback_query_id': callback['id'], 'text': '❌ Tu cuenta no está vinculada.', 'show_alert': True})
+                    return JsonResponse({"status": "ok"})
+                    
+                except Exception as e:
+                    # ESTO ES CLAVE: Imprimir el error real en tu consola (Render/Railway/etc)
+                    print(f"💥 ERROR INTERNO EN WEBHOOK: {e}")
+                    
                     requests.get(f"https://api.telegram.org/bot{TOKEN}/answerCallbackQuery", 
                                  params={'callback_query_id': callback['id'], 'text': '❌ No tienes permiso para modificar este pago.', 'show_alert': True})
                     return JsonResponse({"status": "ok"})
