@@ -954,22 +954,6 @@ def delete_product(request, pk):
             
     return render(request, 'core/product_confirm_delete.html', {'product': product})
 
-Este error (UnboundLocalError) es un clásico de Python y ocurre porque el código está intentando usar la variable chat_id antes de que se le haya asignado un valor, o fuera del bloque donde se definió.
-
-En el código anterior, si Telegram enviaba un tipo de notificación que no era ni un callback_query ni un message estándar (o si fallaba justo en la línea donde se extraía el ID), la variable quedaba "en el aire".
-
-Aquí tienes el código corregido. He movido la extracción del chat_id al principio de forma segura para que siempre esté disponible, especialmente para tu lógica de ID de Grupo.
-
-Código Completo y Corregido
-Python
-import json
-import requests
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.conf import settings
-# Asegúrate de que estos imports existan en tu proyecto
-# from .models import Payment, StoreSettings
-# from .utils import process_payment_action, process_telegram_command
 
 @csrf_exempt
 def telegram_webhook(request, token=None):
