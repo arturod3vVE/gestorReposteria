@@ -966,41 +966,36 @@ def telegram_webhook(request, token=None):
             # ==========================================
             if 'callback_query' in update:
                 callback = update['callback_query']
-                user_who_clicked_id = str(callback['from']['id']) # ID real de la persona
-                chat_id = callback['message']['chat']['id']
+                # 🎯 CAMBIO CLAVE: Tomamos el ID del CHAT/GRUPO, no del usuario
+                current_chat_id = str(callback['message']['chat']['id'])
+                
                 message_id = callback['message']['message_id']
                 data = callback['data'] 
                 
-                # Extraemos la acción y el pago
                 action_short, payment_id = data.split('_')
                 payment = Payment.objects.get(id=payment_id)
                 
-                # 🔒 SEGURIDAD MULTI-TENANT
+                # 🔒 SEGURIDAD MULTI-TENANT (Por Chat/Grupo)
                 try:
-                    # Obtenemos al dueño de la tienda a través de la orden del pago
                     tienda_owner = payment.order.user
-                    config = tienda_owner.store_settings # Relación OneToOne
+                    config = tienda_owner.store_settings
                     
-                    # Validamos si el ID de quien hizo clic es el que está registrado
-                    if not config.telegram_chat_id or user_who_clicked_id != str(config.telegram_chat_id).strip():
-                        print(f"⚠️ Acceso denegado: {user_who_clicked_id} intentó gestionar pago de {tienda_owner.username}")
+                    # Comparamos el ID del chat actual con el guardado en la configuración
+                    if not config.telegram_chat_id or current_chat_id != str(config.telegram_chat_id).strip():
+                        print(f"⚠️ Intento de acción desde chat no autorizado: {current_chat_id}")
                         requests.get(f"https://api.telegram.org/bot{TOKEN}/answerCallbackQuery", 
                                      params={
                                          'callback_query_id': callback['id'], 
-                                         'text': '❌ No tienes permiso. Solo el dueño de la tienda puede autorizar esto.', 
+                                         'text': '❌ Este grupo/chat no está autorizado para gestionar este pago.', 
                                          'show_alert': True
                                      })
                         return JsonResponse({"status": "ok"})
                         
                 except Exception as e:
                     print(f"💥 Error validando StoreSettings: {e}")
-                    requests.get(f"https://api.telegram.org/bot{TOKEN}/answerCallbackQuery", 
-                                 params={'callback_query_id': callback['id'], 'text': '❌ Error de configuración en la tienda.', 'show_alert': True})
                     return JsonResponse({"status": "ok"})
-                
-                # --- SI PASA LA SEGURIDAD, PROCEDEMOS ---
-                
-                # Ejecutamos la acción en el sistema (aprobar/rechazar)
+
+                # --- SI EL CHAT ES EL CORRECTO, PROCESAMOS ---
                 action_full = 'approve' if action_short == 'app' else 'reject'
                 success, result_message = process_payment_action(payment, action_full)
                 
