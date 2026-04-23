@@ -955,81 +955,81 @@ def delete_product(request, pk):
     return render(request, 'core/product_confirm_delete.html', {'product': product})
 
 @csrf_exempt
-def telegram_webhook(request, token=None): 
-    # (El parámetro 'token' es opcional dependiendo de cómo lo pusiste en urls.py)
-    
+def telegram_webhook(request, token=None):
     if request.method == 'POST':
         try:
             update = json.loads(request.body.decode('utf-8'))
             TOKEN = settings.TELEGRAM_BOT_TOKEN
             
             # ==========================================
-            # 1. PROCESAR BOTONES (Aprobar / Rechazar)
+            # 1. PROCESAR BOTONES (Callback Queries)
             # ==========================================
             if 'callback_query' in update:
                 callback = update['callback_query']
+                user_who_clicked_id = str(callback['from']['id']) # ID real de la persona
                 chat_id = callback['message']['chat']['id']
                 message_id = callback['message']['message_id']
                 data = callback['data'] 
                 
-                # Detectar si el mensaje original tenía foto o era puro texto
-                is_photo = 'caption' in callback['message']
-                original_text = callback['message'].get('caption', callback['message'].get('text', ''))
-                
+                # Extraemos la acción y el pago
                 action_short, payment_id = data.split('_')
                 payment = Payment.objects.get(id=payment_id)
                 
-                # 🔒 SEGURIDAD MULTI-TENANT: ¿El botón lo pulsó el dueño de este pago?
+                # 🔒 SEGURIDAD MULTI-TENANT
                 try:
-                    # 1. Obtener el ID de la persona que HIZO CLIC en el botón
-                    user_who_clicked = callback['from']['id']
+                    # Obtenemos al dueño de la tienda a través de la orden del pago
+                    tienda_owner = payment.order.user
+                    config = tienda_owner.store_settings # Relación OneToOne
                     
-                    # 2. Buscar la configuración de la tienda de esa persona
-                    config = StoreSettings.objects.get(telegram_chat_id=str(user_who_clicked))
-                    
-                    # 3. Verificar si el dueño de la orden es el mismo dueño de esa configuración
-                    # (Cambiado a payment.order.user basado en tu código anterior)
-                    dueño_pago = payment.order.user
-                    
-                    if dueño_pago != config.user:
-                        raise ValueError("El usuario que hizo clic no es el dueño de la tienda de este pago.")
+                    # Validamos si el ID de quien hizo clic es el que está registrado
+                    if not config.telegram_chat_id or user_who_clicked_id != str(config.telegram_chat_id).strip():
+                        print(f"⚠️ Acceso denegado: {user_who_clicked_id} intentó gestionar pago de {tienda_owner.username}")
+                        requests.get(f"https://api.telegram.org/bot{TOKEN}/answerCallbackQuery", 
+                                     params={
+                                         'callback_query_id': callback['id'], 
+                                         'text': '❌ No tienes permiso. Solo el dueño de la tienda puede autorizar esto.', 
+                                         'show_alert': True
+                                     })
+                        return JsonResponse({"status": "ok"})
                         
-                except StoreSettings.DoesNotExist:
-                    print(f"Error de permisos: No hay tienda asociada al chat_id {user_who_clicked}")
-                    requests.get(f"https://api.telegram.org/bot{TOKEN}/answerCallbackQuery", 
-                                 params={'callback_query_id': callback['id'], 'text': '❌ Tu cuenta no está vinculada.', 'show_alert': True})
-                    return JsonResponse({"status": "ok"})
-                    
                 except Exception as e:
-                    # ESTO ES CLAVE: Imprimir el error real en tu consola (Render/Railway/etc)
-                    print(f"💥 ERROR INTERNO EN WEBHOOK: {e}")
-                    
+                    print(f"💥 Error validando StoreSettings: {e}")
                     requests.get(f"https://api.telegram.org/bot{TOKEN}/answerCallbackQuery", 
-                                 params={'callback_query_id': callback['id'], 'text': '❌ No tienes permiso para modificar este pago.', 'show_alert': True})
+                                 params={'callback_query_id': callback['id'], 'text': '❌ Error de configuración en la tienda.', 'show_alert': True})
                     return JsonResponse({"status": "ok"})
                 
-                # Ejecutamos la acción en el sistema
+                # --- SI PASA LA SEGURIDAD, PROCEDEMOS ---
+                
+                # Ejecutamos la acción en el sistema (aprobar/rechazar)
                 action_full = 'approve' if action_short == 'app' else 'reject'
                 success, result_message = process_payment_action(payment, action_full)
                 
-                if success and action_full == 'approve':
-                    estado_emoji = "✅" 
-                elif success and action_full == 'reject':
-                    estado_emoji = "🗑️" 
-                else:
-                    estado_emoji = "❌" 
-                    
-                nuevo_estado = f"{estado_emoji} *{result_message}*"
-                nuevo_texto = f"{original_text}\n\n{nuevo_estado}"
+                # Definimos el estado visual
+                estado_emoji = "✅" if success and action_full == 'approve' else "🗑️" if success else "❌"
+                
+                # Obtener texto original (considerando si es foto o texto simple)
+                is_photo = 'caption' in callback['message']
+                original_text = callback['message'].get('caption', callback['message'].get('text', ''))
+                
+                nuevo_texto = f"{original_text}\n\n{estado_emoji} *{result_message}*"
 
+                # 1. Quitar el "relojito" del botón en Telegram
                 requests.get(f"https://api.telegram.org/bot{TOKEN}/answerCallbackQuery?callback_query_id={callback['id']}")
                 
+                # 2. Editar el mensaje para mostrar el resultado y quitar los botones
+                payload = {
+                    'chat_id': chat_id, 
+                    'message_id': message_id, 
+                    'parse_mode': 'Markdown',
+                    'reply_markup': json.dumps({'inline_keyboard': []}) # Quitamos los botones
+                }
+                
                 if is_photo:
-                    edit_url = f"https://api.telegram.org/bot{TOKEN}/editMessageCaption"
-                    requests.post(edit_url, json={'chat_id': chat_id, 'message_id': message_id, 'caption': nuevo_texto, 'parse_mode': 'Markdown'})
+                    payload['caption'] = nuevo_texto
+                    requests.post(f"https://api.telegram.org/bot{TOKEN}/editMessageCaption", json=payload)
                 else:
-                    edit_url = f"https://api.telegram.org/bot{TOKEN}/editMessageText"
-                    requests.post(edit_url, json={'chat_id': chat_id, 'message_id': message_id, 'text': nuevo_texto, 'parse_mode': 'Markdown'})
+                    payload['text'] = nuevo_texto
+                    requests.post(f"https://api.telegram.org/bot{TOKEN}/editMessageText", json=payload)
             
             # ==========================================
             # 2. PROCESAR COMANDOS DE TEXTO
@@ -1041,23 +1041,22 @@ def telegram_webhook(request, token=None):
                 if texto_recibido.startswith('/start'):
                     first_name = update['message']['chat'].get('first_name', 'Repostero')
                     reply_text = (
-                        f"👋 ¡Hola, {first_name}! Bienvenido al Bot de Notificaciones de CrumbCore.\n\n"
+                        f"👋 ¡Hola, {first_name}! Bienvenido a CrumbCore.\n\n"
                         f"Tu ID de conexión es: `{chat_id}`\n\n"
-                        f"📌 Copia ese número (puedes tocarlo para copiar) y pégalo en la sección de "
-                        f"Configuraciones de tu panel para vincular tu tienda."
+                        f"📌 Copia este número y pégalo en la sección de "
+                        f"Configuraciones de tu panel para recibir notificaciones aquí."
                     )
-                    url_enviar = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-                    requests.post(url_enviar, json={'chat_id': chat_id, 'text': reply_text, 'parse_mode': 'Markdown'})
+                    requests.post(f"https://api.telegram.org/bot{TOKEN}/sendMessage", 
+                                  json={'chat_id': chat_id, 'text': reply_text, 'parse_mode': 'Markdown'})
                 
                 elif texto_recibido.startswith('/'):
                     respuesta_texto = process_telegram_command(texto_recibido, chat_id)
-                    
                     if respuesta_texto:
-                        url_enviar = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-                        requests.post(url_enviar, json={'chat_id': chat_id, 'text': respuesta_texto, 'parse_mode': 'Markdown'})
+                        requests.post(f"https://api.telegram.org/bot{TOKEN}/sendMessage", 
+                                      json={'chat_id': chat_id, 'text': respuesta_texto, 'parse_mode': 'Markdown'})
 
         except Exception as e:
-            print(f"Webhook error: {e}")
+            print(f"❌ Error crítico en el Webhook: {e}")
     
         return JsonResponse({"status": "ok"})
     
