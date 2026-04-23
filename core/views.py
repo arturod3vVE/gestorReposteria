@@ -954,92 +954,118 @@ def delete_product(request, pk):
             
     return render(request, 'core/product_confirm_delete.html', {'product': product})
 
+Este error (UnboundLocalError) es un clásico de Python y ocurre porque el código está intentando usar la variable chat_id antes de que se le haya asignado un valor, o fuera del bloque donde se definió.
+
+En el código anterior, si Telegram enviaba un tipo de notificación que no era ni un callback_query ni un message estándar (o si fallaba justo en la línea donde se extraía el ID), la variable quedaba "en el aire".
+
+Aquí tienes el código corregido. He movido la extracción del chat_id al principio de forma segura para que siempre esté disponible, especialmente para tu lógica de ID de Grupo.
+
+Código Completo y Corregido
+Python
+import json
+import requests
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.conf import settings
+# Asegúrate de que estos imports existan en tu proyecto
+# from .models import Payment, StoreSettings
+# from .utils import process_payment_action, process_telegram_command
+
 @csrf_exempt
 def telegram_webhook(request, token=None):
     if request.method == 'POST':
+        # Inicializamos chat_id como None para evitar el error de "local variable"
+        chat_id = None 
+        
         try:
             update = json.loads(request.body.decode('utf-8'))
             TOKEN = settings.TELEGRAM_BOT_TOKEN
-            
+
             # ==========================================
-            # 1. PROCESAR BOTONES (Callback Queries)
+            # 1. EXTRACCIÓN SEGURA DEL CHAT_ID
+            # ==========================================
+            if 'callback_query' in update:
+                chat_id = update['callback_query']['message']['chat']['id']
+            elif 'message' in update:
+                chat_id = update['message']['chat']['id']
+            elif 'edited_message' in update:
+                chat_id = update['edited_message']['chat']['id']
+
+            # Si no logramos detectar un chat_id, ignoramos este update silenciosamente
+            if chat_id is None:
+                return JsonResponse({"status": "ignored_no_chat_id"})
+
+            # Convertimos a string para comparar con la base de datos
+            str_chat_id = str(chat_id).strip()
+
+            # ==========================================
+            # 2. PROCESAR BOTONES (Callback Queries)
             # ==========================================
             if 'callback_query' in update:
                 callback = update['callback_query']
-                # 🎯 CAMBIO CLAVE: Tomamos el ID del CHAT/GRUPO, no del usuario
-                current_chat_id = str(callback['message']['chat']['id'])
-                
                 message_id = callback['message']['message_id']
                 data = callback['data'] 
                 
-                action_short, payment_id = data.split('_')
-                payment = Payment.objects.get(id=payment_id)
-                
-                # 🔒 SEGURIDAD MULTI-TENANT (Por Chat/Grupo)
+                # Extraemos la acción y el pago
                 try:
+                    action_short, payment_id = data.split('_')
+                    payment = Payment.objects.get(id=payment_id)
                     tienda_owner = payment.order.user
                     config = tienda_owner.store_settings
                     
-                    # Comparamos el ID del chat actual con el guardado en la configuración
-                    if not config.telegram_chat_id or current_chat_id != str(config.telegram_chat_id).strip():
-                        print(f"⚠️ Intento de acción desde chat no autorizado: {current_chat_id}")
+                    # 🔒 SEGURIDAD POR GRUPO: Comparamos el chat_id del grupo
+                    if not config.telegram_chat_id or str_chat_id != str(config.telegram_chat_id).strip():
+                        print(f"⚠️ Chat no autorizado: {str_chat_id} intentó gestionar pago de {tienda_owner.username}")
                         requests.get(f"https://api.telegram.org/bot{TOKEN}/answerCallbackQuery", 
                                      params={
                                          'callback_query_id': callback['id'], 
-                                         'text': '❌ Este grupo/chat no está autorizado para gestionar este pago.', 
+                                         'text': '❌ Este grupo no está autorizado para este pago.', 
                                          'show_alert': True
                                      })
-                        return JsonResponse({"status": "ok"})
-                        
-                except Exception as e:
-                    print(f"💥 Error validando StoreSettings: {e}")
-                    return JsonResponse({"status": "ok"})
+                        return JsonResponse({"status": "unauthorized"})
 
-                # --- SI EL CHAT ES EL CORRECTO, PROCESAMOS ---
-                action_full = 'approve' if action_short == 'app' else 'reject'
-                success, result_message = process_payment_action(payment, action_full)
-                
-                # Definimos el estado visual
-                estado_emoji = "✅" if success and action_full == 'approve' else "🗑️" if success else "❌"
-                
-                # Obtener texto original (considerando si es foto o texto simple)
-                is_photo = 'caption' in callback['message']
-                original_text = callback['message'].get('caption', callback['message'].get('text', ''))
-                
-                nuevo_texto = f"{original_text}\n\n{estado_emoji} *{result_message}*"
+                    # Ejecutamos la acción
+                    action_full = 'approve' if action_short == 'app' else 'reject'
+                    success, result_message = process_payment_action(payment, action_full)
+                    
+                    # Formatear respuesta visual
+                    estado_emoji = "✅" if success and action_full == 'approve' else "🗑️" if success else "❌"
+                    is_photo = 'caption' in callback['message']
+                    original_text = callback['message'].get('caption', callback['message'].get('text', ''))
+                    nuevo_texto = f"{original_text}\n\n{estado_emoji} *{result_message}*"
 
-                # 1. Quitar el "relojito" del botón en Telegram
-                requests.get(f"https://api.telegram.org/bot{TOKEN}/answerCallbackQuery?callback_query_id={callback['id']}")
-                
-                # 2. Editar el mensaje para mostrar el resultado y quitar los botones
-                payload = {
-                    'chat_id': chat_id, 
-                    'message_id': message_id, 
-                    'parse_mode': 'Markdown',
-                    'reply_markup': json.dumps({'inline_keyboard': []}) # Quitamos los botones
-                }
-                
-                if is_photo:
-                    payload['caption'] = nuevo_texto
-                    requests.post(f"https://api.telegram.org/bot{TOKEN}/editMessageCaption", json=payload)
-                else:
-                    payload['text'] = nuevo_texto
-                    requests.post(f"https://api.telegram.org/bot{TOKEN}/editMessageText", json=payload)
-            
+                    # Notificar a Telegram y editar mensaje
+                    requests.get(f"https://api.telegram.org/bot{TOKEN}/answerCallbackQuery?callback_query_id={callback['id']}")
+                    
+                    payload = {
+                        'chat_id': chat_id, 
+                        'message_id': message_id, 
+                        'parse_mode': 'Markdown',
+                        'reply_markup': json.dumps({'inline_keyboard': []}) 
+                    }
+                    
+                    endpoint = "editMessageCaption" if is_photo else "editMessageText"
+                    if is_photo: payload['caption'] = nuevo_texto
+                    else: payload['text'] = nuevo_texto
+                    
+                    requests.post(f"https://api.telegram.org/bot{TOKEN}/{endpoint}", json=payload)
+
+                except Exception as inner_e:
+                    print(f"Error interno procesando callback: {inner_e}")
+                    requests.get(f"https://api.telegram.org/bot{TOKEN}/answerCallbackQuery", 
+                                 params={'callback_query_id': callback['id'], 'text': '❌ Error al procesar el pago.', 'show_alert': True})
+
             # ==========================================
-            # 2. PROCESAR COMANDOS DE TEXTO
+            # 3. PROCESAR COMANDOS DE TEXTO
             # ==========================================
             elif 'message' in update and 'text' in update['message']:
-                chat_id = update['message']['chat']['id']
                 texto_recibido = update['message']['text']
                 
                 if texto_recibido.startswith('/start'):
-                    first_name = update['message']['chat'].get('first_name', 'Repostero')
                     reply_text = (
-                        f"👋 ¡Hola, {first_name}! Bienvenido a CrumbCore.\n\n"
-                        f"Tu ID de conexión es: `{chat_id}`\n\n"
-                        f"📌 Copia este número y pégalo en la sección de "
-                        f"Configuraciones de tu panel para recibir notificaciones aquí."
+                        f"👋 ¡Hola! Bienvenido a CrumbCore.\n\n"
+                        f"El ID de este chat es: `{chat_id}`\n\n"
+                        f"📌 Configúralo en tu panel para recibir notificaciones aquí."
                     )
                     requests.post(f"https://api.telegram.org/bot{TOKEN}/sendMessage", 
                                   json={'chat_id': chat_id, 'text': reply_text, 'parse_mode': 'Markdown'})
@@ -1051,6 +1077,7 @@ def telegram_webhook(request, token=None):
                                       json={'chat_id': chat_id, 'text': respuesta_texto, 'parse_mode': 'Markdown'})
 
         except Exception as e:
+            # Aquí chat_id ya existe (como None o con valor), evitando el UnboundLocalError
             print(f"❌ Error crítico en el Webhook: {e}")
     
         return JsonResponse({"status": "ok"})
